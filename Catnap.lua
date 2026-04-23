@@ -73,19 +73,19 @@ end
 -- SONS
 -- ═══════════════════════════════════════
 local SND = {
-	ambient = "rbxassetid://9114228965",
-	jumpscare = "rbxassetid://9114222601",
+	ambient = "rbxassetid://138890398994853",
+	jumpscare = "rbxassetid://115483973318915",
 	heartbeat = "rbxassetid://142376088",
-	growl = "rbxassetid://6229625468",
-	explosion = "rbxassetid://5765648065",
-	hit = "rbxassetid://5208655345",
-	victory = "rbxassetid://5208652778",
-	breathing = "rbxassetid://9125450429",
-	codeFail = "rbxassetid://150315649",
-	weaponSwing = "rbxassetid://3370874737",
-	footstep = "rbxassetid://4812494582",
-	static = "rbxassetid://5765648065",
-	codeSuccess = "rbxassetid://5208652778",
+	growl = "rbxassetid://139934330820371",
+	explosion = "rbxassetid://140653132496955",
+	hit = "rbxassetid://140648211829044",
+	victory = "rbxassetid://120682227591051",
+	breathing = "rbxassetid://139784298444442",
+	codeFail = "rbxassetid://14649711205",
+	weaponSwing = "rbxassetid://93806155622808",
+	footstep = "rbxassetid://140668467774841",
+	static = "rbxassetid://140420084015321",
+	codeSuccess = "rbxassetid://140437791600159",
 }
 
 local function snd(id, vol, loop)
