@@ -1,0 +1,962 @@
+-- LocalScript à placer dans StarterPlayerScripts ou StarterGui
+-- Panel Admin v4 - Spam Couch / Multi-Seat / Abandon si déjà assis
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Coordonnées
+local COORD_ATTENTE = Vector3.new(-86.37, 19.41, -129.45)
+local COORD_RELACHER = Vector3.new(-337.55, 52.91, -454.94)
+
+local positionInitiale = nil
+local joueurCible = nil
+local enAction = false
+local stopAction = false
+
+------------------------------------------------------------
+-- INTERFACE
+------------------------------------------------------------
+
+local function creerInterface()
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "AdminPanel"
+	screenGui.ResetOnSpawn = false
+	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	screenGui.Parent = PlayerGui
+
+	local mainFrame = Instance.new("Frame")
+	mainFrame.Name = "MainFrame"
+	mainFrame.Size = UDim2.new(0, 370, 0, 560)
+	mainFrame.Position = UDim2.new(0.5, -185, 0.5, -280)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+	mainFrame.BorderSizePixel = 0
+	mainFrame.Active = true
+	mainFrame.Draggable = true
+	mainFrame.Visible = false
+	mainFrame.Parent = screenGui
+
+	local co = Instance.new("UICorner")
+	co.CornerRadius = UDim.new(0, 12)
+	co.Parent = mainFrame
+
+	local st = Instance.new("UIStroke")
+	st.Color = Color3.fromRGB(100, 60, 255)
+	st.Thickness = 2
+	st.Transparency = 0.3
+	st.Parent = mainFrame
+
+	-- Titre
+	local titleBar = Instance.new("Frame")
+	titleBar.Size = UDim2.new(1, 0, 0, 42)
+	titleBar.BackgroundColor3 = Color3.fromRGB(28, 28, 45)
+	titleBar.BorderSizePixel = 0
+	titleBar.Parent = mainFrame
+
+	local tc = Instance.new("UICorner")
+	tc.CornerRadius = UDim.new(0, 12)
+	tc.Parent = titleBar
+
+	local tf = Instance.new("Frame")
+	tf.Size = UDim2.new(1, 0, 0, 14)
+	tf.Position = UDim2.new(0, 0, 1, -14)
+	tf.BackgroundColor3 = Color3.fromRGB(28, 28, 45)
+	tf.BorderSizePixel = 0
+	tf.Parent = titleBar
+
+	local tl = Instance.new("TextLabel")
+	tl.Size = UDim2.new(1, -50, 1, 0)
+	tl.Position = UDim2.new(0, 14, 0, 0)
+	tl.BackgroundTransparency = 1
+	tl.Text = "⚡ ADMIN PANEL v4"
+	tl.TextColor3 = Color3.fromRGB(120, 80, 255)
+	tl.TextSize = 17
+	tl.Font = Enum.Font.GothamBold
+	tl.TextXAlignment = Enum.TextXAlignment.Left
+	tl.Parent = titleBar
+
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Size = UDim2.new(0, 28, 0, 28)
+	closeBtn.Position = UDim2.new(1, -36, 0, 7)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+	closeBtn.Text = "X"
+	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeBtn.TextSize = 15
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.BorderSizePixel = 0
+	closeBtn.Parent = titleBar
+	local cc = Instance.new("UICorner")
+	cc.CornerRadius = UDim.new(0, 6)
+	cc.Parent = closeBtn
+
+	-- Status
+	local statusLabel = Instance.new("TextLabel")
+	statusLabel.Name = "StatusLabel"
+	statusLabel.Size = UDim2.new(1, -20, 0, 50)
+	statusLabel.Position = UDim2.new(0, 10, 0, 47)
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Text = "Statut: En attente..."
+	statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	statusLabel.TextSize = 11
+	statusLabel.Font = Enum.Font.Gotham
+	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+	statusLabel.TextWrapped = true
+	statusLabel.Parent = mainFrame
+
+	-- Sous titre
+	local pt = Instance.new("TextLabel")
+	pt.Size = UDim2.new(1, -20, 0, 18)
+	pt.Position = UDim2.new(0, 10, 0, 100)
+	pt.BackgroundTransparency = 1
+	pt.Text = "📋 Joueurs :"
+	pt.TextColor3 = Color3.fromRGB(150, 130, 255)
+	pt.TextSize = 13
+	pt.Font = Enum.Font.GothamSemibold
+	pt.TextXAlignment = Enum.TextXAlignment.Left
+	pt.Parent = mainFrame
+
+	-- Scroll
+	local scrollFrame = Instance.new("ScrollingFrame")
+	scrollFrame.Name = "PlayerList"
+	scrollFrame.Size = UDim2.new(1, -20, 0, 230)
+	scrollFrame.Position = UDim2.new(0, 10, 0, 122)
+	scrollFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 22)
+	scrollFrame.BorderSizePixel = 0
+	scrollFrame.ScrollBarThickness = 5
+	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 60, 255)
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scrollFrame.Parent = mainFrame
+
+	local sc2 = Instance.new("UICorner")
+	sc2.CornerRadius = UDim.new(0, 8)
+	sc2.Parent = scrollFrame
+
+	local ll = Instance.new("UIListLayout")
+	ll.Padding = UDim.new(0, 3)
+	ll.SortOrder = Enum.SortOrder.LayoutOrder
+	ll.Parent = scrollFrame
+
+	local lp = Instance.new("UIPadding")
+	lp.PaddingTop = UDim.new(0, 4)
+	lp.PaddingLeft = UDim.new(0, 4)
+	lp.PaddingRight = UDim.new(0, 4)
+	lp.Parent = scrollFrame
+
+	-- Boutons
+	local refreshBtn = Instance.new("TextButton")
+	refreshBtn.Size = UDim2.new(0.30, 0, 0, 33)
+	refreshBtn.Position = UDim2.new(0.01, 5, 0, 362)
+	refreshBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 90)
+	refreshBtn.Text = "🔄"
+	refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	refreshBtn.TextSize = 18
+	refreshBtn.Font = Enum.Font.GothamBold
+	refreshBtn.BorderSizePixel = 0
+	refreshBtn.Parent = mainFrame
+	local rc = Instance.new("UICorner")
+	rc.CornerRadius = UDim.new(0, 8)
+	rc.Parent = refreshBtn
+
+	local executeBtn = Instance.new("TextButton")
+	executeBtn.Size = UDim2.new(0.33, 0, 0, 33)
+	executeBtn.Position = UDim2.new(0.33, 5, 0, 362)
+	executeBtn.BackgroundColor3 = Color3.fromRGB(170, 30, 30)
+	executeBtn.Text = "💀 KILL"
+	executeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	executeBtn.TextSize = 13
+	executeBtn.Font = Enum.Font.GothamBold
+	executeBtn.BorderSizePixel = 0
+	executeBtn.Parent = mainFrame
+	local ec = Instance.new("UICorner")
+	ec.CornerRadius = UDim.new(0, 8)
+	ec.Parent = executeBtn
+
+	local stopBtn = Instance.new("TextButton")
+	stopBtn.Size = UDim2.new(0.30, 0, 0, 33)
+	stopBtn.Position = UDim2.new(0.68, 5, 0, 362)
+	stopBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	stopBtn.Text = "⛔"
+	stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	stopBtn.TextSize = 18
+	stopBtn.Font = Enum.Font.GothamBold
+	stopBtn.BorderSizePixel = 0
+	stopBtn.Parent = mainFrame
+	local stc = Instance.new("UICorner")
+	stc.CornerRadius = UDim.new(0, 8)
+	stc.Parent = stopBtn
+
+	-- Étapes
+	local etapeFrame = Instance.new("Frame")
+	etapeFrame.Size = UDim2.new(1, -20, 0, 140)
+	etapeFrame.Position = UDim2.new(0, 10, 0, 405)
+	etapeFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 22)
+	etapeFrame.BorderSizePixel = 0
+	etapeFrame.Parent = mainFrame
+	local efc = Instance.new("UICorner")
+	efc.CornerRadius = UDim.new(0, 8)
+	efc.Parent = etapeFrame
+
+	local etapeLabel = Instance.new("TextLabel")
+	etapeLabel.Name = "EtapeLabel"
+	etapeLabel.Size = UDim2.new(1, -10, 1, -6)
+	etapeLabel.Position = UDim2.new(0, 5, 0, 3)
+	etapeLabel.BackgroundTransparency = 1
+	etapeLabel.Text = "📝 Étapes:\n1. Sélectionner joueur\n2. Cliquer KILL ou Kill Tool\n3. Attend Couch + spam sur cible\n4. Cible assise → TP + relâche\n\n⚠️ Si déjà assis = abandon"
+	etapeLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+	etapeLabel.TextSize = 10
+	etapeLabel.Font = Enum.Font.Gotham
+	etapeLabel.TextXAlignment = Enum.TextXAlignment.Left
+	etapeLabel.TextYAlignment = Enum.TextYAlignment.Top
+	etapeLabel.TextWrapped = true
+	etapeLabel.Parent = etapeFrame
+
+	-- Toggle
+	local toggleBtn = Instance.new("TextButton")
+	toggleBtn.Size = UDim2.new(0, 48, 0, 48)
+	toggleBtn.Position = UDim2.new(0, 10, 0.5, -24)
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 45)
+	toggleBtn.Text = "⚡"
+	toggleBtn.TextSize = 22
+	toggleBtn.BorderSizePixel = 0
+	toggleBtn.Parent = screenGui
+	local tbc = Instance.new("UICorner")
+	tbc.CornerRadius = UDim.new(0, 24)
+	tbc.Parent = toggleBtn
+	local tbs = Instance.new("UIStroke")
+	tbs.Color = Color3.fromRGB(100, 60, 255)
+	tbs.Thickness = 2
+	tbs.Parent = toggleBtn
+
+	return screenGui, mainFrame, scrollFrame, statusLabel, etapeLabel,
+		closeBtn, refreshBtn, executeBtn, stopBtn, toggleBtn
+end
+
+------------------------------------------------------------
+-- KILL TOOL
+------------------------------------------------------------
+
+local function creerKillTool()
+	local backpack = LocalPlayer:WaitForChild("Backpack")
+	if backpack:FindFirstChild("Kill Tool") then return backpack:FindFirstChild("Kill Tool") end
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Kill Tool") then
+		return LocalPlayer.Character:FindFirstChild("Kill Tool")
+	end
+
+	local tool = Instance.new("Tool")
+	tool.Name = "Kill Tool"
+	tool.RequiresHandle = true
+	tool.CanBeDropped = false
+	tool.ToolTip = "Clic sur joueur = piège Couch"
+
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(1, 1, 4)
+	handle.BrickColor = BrickColor.new("Really red")
+	handle.Material = Enum.Material.Neon
+	handle.Parent = tool
+
+	tool.Parent = backpack
+	return tool
+end
+
+------------------------------------------------------------
+-- UTILITAIRES
+------------------------------------------------------------
+
+local function setStatus(label, text, color)
+	label.Text = "Statut: " .. text
+	label.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+end
+
+local function setEtape(label, text)
+	label.Text = text
+end
+
+local function tp(position)
+	local c = LocalPlayer.Character
+	if c then
+		local hrp = c:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			hrp.CFrame = CFrame.new(position)
+			return true
+		end
+	end
+	return false
+end
+
+local function getCibleHRP(player)
+	if player and player.Character then
+		return player.Character:FindFirstChild("HumanoidRootPart")
+	end
+	return nil
+end
+
+-- Vérifier si un joueur est DEJA assis (peu importe où)
+local function estDejaAssis(player)
+	if player and player.Character then
+		local hum = player.Character:FindFirstChildOfClass("Humanoid")
+		if hum then return hum.Sit == true end
+	end
+	return false
+end
+
+-- Trouver le Couch tool
+local function getCouchTool()
+	local bp = LocalPlayer:FindFirstChild("Backpack")
+	if bp and bp:FindFirstChild("Couch") then return bp:FindFirstChild("Couch") end
+	local c = LocalPlayer.Character
+	if c and c:FindFirstChild("Couch") then return c:FindFirstChild("Couch") end
+	return nil
+end
+
+local function avoirCouch()
+	return getCouchTool() ~= nil
+end
+
+local function equiperCouch()
+	local c = LocalPlayer.Character
+	local hum = c and c:FindFirstChildOfClass("Humanoid")
+	if not hum then return false end
+
+	local bp = LocalPlayer:FindFirstChild("Backpack")
+	if bp and bp:FindFirstChild("Couch") then
+		hum:EquipTool(bp:FindFirstChild("Couch"))
+		return true
+	end
+	if c and c:FindFirstChild("Couch") then return true end
+	return false
+end
+
+local function desequiperCouch()
+	local c = LocalPlayer.Character
+	local hum = c and c:FindFirstChildOfClass("Humanoid")
+	if hum then hum:UnequipTools() end
+end
+
+local function couchEstEquipe()
+	local c = LocalPlayer.Character
+	return c and c:FindFirstChild("Couch") ~= nil
+end
+
+-- Trouver TOUS les seats dans le Couch
+local function trouverTousLesSeats()
+	local couch = getCouchTool()
+	if not couch then return {} end
+
+	local seats = {}
+	local function chercher(parent)
+		for _, child in ipairs(parent:GetChildren()) do
+			if child:IsA("Seat") or child:IsA("VehicleSeat") then
+				table.insert(seats, child)
+			end
+			chercher(child)
+		end
+	end
+	chercher(couch)
+	return seats
+end
+
+-- Vérifier si la cible est assise sur UN des seats du Couch
+local function cibleSurUnSeat(cible)
+	if not cible or not cible.Character then return false end
+
+	local hum = cible.Character:FindFirstChildOfClass("Humanoid")
+	if not hum or not hum.Sit then return false end
+
+	local seats = trouverTousLesSeats()
+	for _, seat in ipairs(seats) do
+		-- Via Occupant
+		if seat.Occupant then
+			local occChar = seat.Occupant.Parent
+			if occChar then
+				local occPlayer = Players:GetPlayerFromCharacter(occChar)
+				if occPlayer == cible then return true end
+			end
+		end
+		-- Via SeatPart
+		if hum.SeatPart == seat then return true end
+	end
+
+	return false
+end
+
+-- Spam : activer le tool (simuler un clic)
+local function spamActiverTool()
+	local c = LocalPlayer.Character
+	if not c then return end
+
+	local couch = c:FindFirstChild("Couch")
+	if not couch then return end
+
+	-- Activer le tool
+	if couch:IsA("Tool") then
+		couch:Activate()
+	end
+end
+
+------------------------------------------------------------
+-- BOUCLE DE SPAM : positionner + spam tool sur la cible
+------------------------------------------------------------
+
+local function boucleSpamSurCible(cible, statusLabel, etapeLabel)
+	local compteur = 0
+
+	while not stopAction do
+		-- Vérifier cible
+		if not cible or not cible.Parent or not cible.Character then
+			setStatus(statusLabel, "⚠️ Cible perdue!", Color3.fromRGB(255, 200, 50))
+			return false
+		end
+
+		local cibleHRP = getCibleHRP(cible)
+		if not cibleHRP then
+			task.wait(0.2)
+			compteur = compteur + 1
+			continue
+		end
+
+		-- Vérifier si la cible s'est assise sur un seat du Couch
+		if cibleSurUnSeat(cible) then
+			setStatus(statusLabel, "✅ " .. cible.Name .. " ASSIS sur le Couch!", Color3.fromRGB(50, 255, 50))
+			return true
+		end
+
+		-- Vérifier que Couch est toujours équipé
+		if not couchEstEquipe() then
+			equiperCouch()
+			task.wait(0.05)
+		end
+
+		compteur = compteur + 1
+		local ciblePos = cibleHRP.Position
+
+		-- Se positionner SUR la cible
+		local myChar = LocalPlayer.Character
+		local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		if myHRP then
+			myHRP.CFrame = CFrame.new(ciblePos)
+		end
+
+		-- Positionner tous les seats du Couch sur la cible
+		local seats = trouverTousLesSeats()
+		for i, seat in ipairs(seats) do
+			-- Décaler légèrement chaque seat pour couvrir plus de zone
+			local offset = Vector3.new(0, -0.5 + (i - 1) * 0.2, 0)
+			seat.CFrame = CFrame.new(ciblePos + offset)
+		end
+
+		-- Positionner le Handle aussi
+		local couch = getCouchTool()
+		if couch then
+			local handle = couch:FindFirstChild("Handle")
+			if handle then
+				handle.CFrame = CFrame.new(ciblePos + Vector3.new(0, -0.5, 0))
+			end
+		end
+
+		-- SPAM : activer le tool en continu
+		spamActiverTool()
+
+		-- Affichage
+		local dots = string.rep(".", compteur % 4)
+		local nbSeats = #seats
+
+		setStatus(statusLabel,
+			"🔄 Spam Couch sur " .. cible.Name .. dots .. " (" .. compteur .. "x) | " .. nbSeats .. " seats",
+			Color3.fromRGB(100, 200, 255)
+		)
+
+		setEtape(etapeLabel,
+			"⚡ ÉTAPE 5 - SPAM ACTIF\n"
+			.. "━━━━━━━━━━━━━━━━\n"
+			.. "🎯 Cible: " .. cible.Name .. "\n"
+			.. "📍 " .. math.floor(ciblePos.X) .. ", " .. math.floor(ciblePos.Y) .. ", " .. math.floor(ciblePos.Z) .. "\n"
+			.. "🔄 Spam #" .. compteur .. "\n"
+			.. "🪑 Seats: " .. nbSeats .. " positionnés\n"
+			.. "⏳ Attente assise..."
+		)
+
+		task.wait(0.05) -- Spam très rapide : 20x par seconde
+	end
+
+	return false
+end
+
+------------------------------------------------------------
+-- LOGIQUE PRINCIPALE
+------------------------------------------------------------
+
+local function executerAction(cible, statusLabel, etapeLabel)
+	if enAction then
+		setStatus(statusLabel, "⚠️ Déjà en cours!", Color3.fromRGB(255, 200, 50))
+		return
+	end
+
+	if not cible then
+		setStatus(statusLabel, "❌ Aucune cible!", Color3.fromRGB(255, 50, 50))
+		return
+	end
+
+	if not cible.Character or not getCibleHRP(cible) then
+		setStatus(statusLabel, "❌ Cible sans personnage!", Color3.fromRGB(255, 50, 50))
+		return
+	end
+
+	----------------------------------------------------
+	-- CHECK : Si le joueur est DEJA assis → ABANDON
+	----------------------------------------------------
+	if estDejaAssis(cible) then
+		setStatus(statusLabel, "🚫 ABANDON - " .. cible.Name .. " est déjà assis!", Color3.fromRGB(255, 80, 80))
+		setEtape(etapeLabel,
+			"🚫 ABANDON\n"
+			.. "━━━━━━━━━━━━━━━━\n"
+			.. "❌ " .. cible.Name .. " est déjà assis\n"
+			.. "❌ Impossible de le piéger\n"
+			.. "💡 Attends qu'il se lève\n"
+			.. "💡 Puis relance l'action"
+		)
+		return
+	end
+
+	enAction = true
+	stopAction = false
+
+	----------------------------------------------------
+	-- ETAPE 1 : Sauvegarder position
+	----------------------------------------------------
+	setEtape(etapeLabel,
+		"📌 ÉTAPE 1 - SAUVEGARDE\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "📍 Sauvegarde position..."
+	)
+
+	local myChar = LocalPlayer.Character
+	if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+		positionInitiale = myChar.HumanoidRootPart.Position
+	end
+
+	setStatus(statusLabel, "📍 Position sauvegardée", Color3.fromRGB(100, 200, 255))
+	setEtape(etapeLabel,
+		"📌 ÉTAPE 1 ✅\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "📍 " .. math.floor(positionInitiale.X) .. ", " .. math.floor(positionInitiale.Y) .. ", " .. math.floor(positionInitiale.Z)
+	)
+	task.wait(0.3)
+
+	if stopAction then
+		enAction = false
+		return
+	end
+
+	----------------------------------------------------
+	-- ETAPE 2 : TP zone attente
+	----------------------------------------------------
+	setEtape(etapeLabel,
+		"➡️ ÉTAPE 2 - TP ATTENTE\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "📍 → " .. COORD_ATTENTE.X .. ", " .. COORD_ATTENTE.Y .. ", " .. COORD_ATTENTE.Z
+	)
+	setStatus(statusLabel, "➡️ TP zone attente...", Color3.fromRGB(100, 200, 255))
+
+	tp(COORD_ATTENTE)
+	task.wait(0.5)
+
+	if stopAction then
+		if positionInitiale then tp(positionInitiale) end
+		enAction = false
+		return
+	end
+
+	----------------------------------------------------
+	-- ETAPE 3 : Attendre Couch
+	----------------------------------------------------
+	local t = 0
+	local tMax = 180
+
+	while not avoirCouch() and t < tMax and not stopAction do
+		task.wait(0.4)
+		t = t + 0.4
+		local d = string.rep(".", math.floor(t) % 4)
+
+		setStatus(statusLabel, "⏳ Attente Couch" .. d .. " (" .. math.floor(t) .. "s)", Color3.fromRGB(255, 200, 50))
+		setEtape(etapeLabel,
+			"📦 ÉTAPE 3 - ATTENTE COUCH\n"
+			.. "━━━━━━━━━━━━━━━━\n"
+			.. "⏳ " .. math.floor(t) .. "s / " .. tMax .. "s\n"
+			.. "📦 Recherche dans inventaire...\n"
+			.. "🔍 Couch non trouvé"
+		)
+
+		-- RE-CHECK : si la cible s'est assise entre-temps → abandon
+		if estDejaAssis(cible) then
+			setStatus(statusLabel, "🚫 ABANDON - " .. cible.Name .. " s'est assis!", Color3.fromRGB(255, 80, 80))
+			if positionInitiale then tp(positionInitiale) end
+			enAction = false
+			return
+		end
+	end
+
+	if stopAction then
+		if positionInitiale then tp(positionInitiale) end
+		enAction = false
+		return
+	end
+
+	if not avoirCouch() then
+		setStatus(statusLabel, "❌ Timeout Couch!", Color3.fromRGB(255, 50, 50))
+		if positionInitiale then tp(positionInitiale) end
+		enAction = false
+		return
+	end
+
+	setStatus(statusLabel, "✅ Couch obtenu!", Color3.fromRGB(50, 255, 50))
+	setEtape(etapeLabel, "📦 ÉTAPE 3 ✅\n━━━━━━━━━━━━━━━━\n✅ Couch trouvé!")
+	task.wait(0.2)
+
+	----------------------------------------------------
+	-- ETAPE 4 : Équiper Couch
+	----------------------------------------------------
+	setEtape(etapeLabel,
+		"🛋️ ÉTAPE 4 - ÉQUIPEMENT\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "🛋️ Équipement Couch..."
+	)
+
+	equiperCouch()
+	task.wait(0.3)
+
+	if not couchEstEquipe() then
+		equiperCouch()
+		task.wait(0.2)
+	end
+
+	-- RE-CHECK avant de spam
+	if estDejaAssis(cible) then
+		setStatus(statusLabel, "🚫 ABANDON - " .. cible.Name .. " s'est assis!", Color3.fromRGB(255, 80, 80))
+		desequiperCouch()
+		if positionInitiale then tp(positionInitiale) end
+		enAction = false
+		return
+	end
+
+	setEtape(etapeLabel, "🛋️ ÉTAPE 4 ✅\n━━━━━━━━━━━━━━━━\n✅ Couch équipé!")
+	task.wait(0.2)
+
+	if stopAction then
+		desequiperCouch()
+		if positionInitiale then tp(positionInitiale) end
+		enAction = false
+		return
+	end
+
+	----------------------------------------------------
+	-- ETAPE 5 : SPAM Couch sur la cible
+	----------------------------------------------------
+	setEtape(etapeLabel,
+		"⚡ ÉTAPE 5 - SPAM\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "🎯 Cible: " .. cible.Name .. "\n"
+		.. "🔄 Lancement spam..."
+	)
+
+	local reussi = boucleSpamSurCible(cible, statusLabel, etapeLabel)
+
+	if stopAction then
+		desequiperCouch()
+		if positionInitiale then tp(positionInitiale) end
+		enAction = false
+		setStatus(statusLabel, "⛔ Stoppé. Retour.", Color3.fromRGB(150, 150, 150))
+		return
+	end
+
+	if not reussi then
+		setStatus(statusLabel, "❌ Échec!", Color3.fromRGB(255, 50, 50))
+		desequiperCouch()
+		if positionInitiale then tp(positionInitiale) end
+		enAction = false
+		return
+	end
+
+	----------------------------------------------------
+	-- ETAPE 6 : Cible assise → TP aux coordonnées RELACHER
+	-- COUCH RESTE EN MAIN !
+	----------------------------------------------------
+	setEtape(etapeLabel,
+		"🪑 ÉTAPE 6 - CIBLE ASSISE!\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "✅ " .. cible.Name .. " est sur le Couch!\n"
+		.. "🛋️ Couch EN MAIN\n"
+		.. "➡️ TP vers zone de relâche..."
+	)
+	setStatus(statusLabel, "🪑 ASSIS! TP avec Couch en main...", Color3.fromRGB(50, 255, 100))
+	task.wait(0.2)
+
+	-- TP avec Couch EN MAIN (cible reste assise)
+	tp(COORD_RELACHER)
+	task.wait(0.5)
+
+	setEtape(etapeLabel,
+		"📍 ÉTAPE 6 ✅\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "📍 Arrivé: -337.55, 52.91, -454.94\n"
+		.. "🪑 " .. cible.Name .. " toujours assis\n"
+		.. "🛋️ Couch toujours en main"
+	)
+	task.wait(0.3)
+
+	----------------------------------------------------
+	-- ETAPE 7 : MAINTENANT on lâche le Couch
+	----------------------------------------------------
+	setEtape(etapeLabel,
+		"📦 ÉTAPE 7 - RELÂCHE\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "🛋️ Déséquipement Couch...\n"
+		.. "📦 → Inventaire"
+	)
+	setStatus(statusLabel, "📦 Relâche du Couch...", Color3.fromRGB(255, 200, 50))
+
+	desequiperCouch()
+	task.wait(0.5)
+
+	setEtape(etapeLabel,
+		"📦 ÉTAPE 7 ✅\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "✅ Couch lâché\n"
+		.. "🪑 " .. cible.Name .. " relâché ici"
+	)
+
+	----------------------------------------------------
+	-- ETAPE 8 : Retour position initiale
+	----------------------------------------------------
+	setEtape(etapeLabel,
+		"🏠 ÉTAPE 8 - RETOUR\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "🏠 TP position de départ..."
+	)
+	setStatus(statusLabel, "🏠 Retour...", Color3.fromRGB(150, 255, 150))
+	task.wait(0.5)
+
+	if positionInitiale then
+		tp(positionInitiale)
+	end
+
+	task.wait(0.5)
+
+	setEtape(etapeLabel,
+		"✅ TERMINÉ!\n"
+		.. "━━━━━━━━━━━━━━━━\n"
+		.. "🎯 " .. cible.Name .. " piégé!\n"
+		.. "📍 Relâché à: -337.55, 52.91, -454.94\n"
+		.. "🏠 Retour effectué\n"
+		.. "\n💡 Prêt pour une nouvelle cible"
+	)
+	setStatus(statusLabel, "✅ " .. cible.Name .. " piégé et relâché! Prêt.", Color3.fromRGB(50, 255, 50))
+
+	joueurCible = nil
+	enAction = false
+end
+
+------------------------------------------------------------
+-- LISTE JOUEURS
+------------------------------------------------------------
+
+local function rafraichirListe(scrollFrame, statusLabel)
+	for _, child in ipairs(scrollFrame:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+
+	local count = 0
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			count = count + 1
+
+			local btn = Instance.new("TextButton")
+			btn.Name = "P_" .. player.Name
+			btn.Size = UDim2.new(1, -8, 0, 34)
+			btn.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+			btn.BorderSizePixel = 0
+			btn.Font = Enum.Font.GothamSemibold
+			btn.TextSize = 11
+			btn.TextColor3 = Color3.fromRGB(210, 210, 210)
+			btn.TextXAlignment = Enum.TextXAlignment.Left
+			btn.Parent = scrollFrame
+
+			local assis = estDejaAssis(player)
+			local sitIcon = assis and " 🪑 ASSIS" or " ✅ DEBOUT"
+			local sitColor = assis and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(100, 255, 100)
+
+			btn.Text = "  👤 " .. player.DisplayName .. " (@" .. player.Name .. ")" .. sitIcon
+
+			local bc = Instance.new("UICorner")
+			bc.CornerRadius = UDim.new(0, 6)
+			bc.Parent = btn
+
+			btn.MouseEnter:Connect(function()
+				if joueurCible ~= player then
+					btn.BackgroundColor3 = Color3.fromRGB(42, 42, 65)
+				end
+			end)
+			btn.MouseLeave:Connect(function()
+				if joueurCible ~= player then
+					btn.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+				end
+			end)
+
+			btn.MouseButton1Click:Connect(function()
+				for _, c in ipairs(scrollFrame:GetChildren()) do
+					if c:IsA("TextButton") then
+						c.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+						c.TextColor3 = Color3.fromRGB(210, 210, 210)
+					end
+				end
+
+				-- Si déjà assis : avertissement
+				if estDejaAssis(player) then
+					setStatus(statusLabel, "⚠️ " .. player.Name .. " est assis! Action impossible.", Color3.fromRGB(255, 150, 50))
+				end
+
+				joueurCible = player
+				btn.BackgroundColor3 = Color3.fromRGB(55, 20, 20)
+				btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+				setStatus(statusLabel, "🎯 Cible: " .. player.DisplayName, Color3.fromRGB(255, 150, 100))
+			end)
+		end
+	end
+
+	local layout = scrollFrame:FindFirstChildOfClass("UIListLayout")
+	if layout then
+		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+	end
+
+	if count == 0 then
+		local lbl = Instance.new("TextLabel")
+		lbl.Size = UDim2.new(1, 0, 0, 40)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = "Aucun autre joueur"
+		lbl.TextColor3 = Color3.fromRGB(70, 70, 70)
+		lbl.TextSize = 11
+		lbl.Font = Enum.Font.Gotham
+		lbl.Parent = scrollFrame
+	end
+end
+
+------------------------------------------------------------
+-- INIT
+------------------------------------------------------------
+
+local function init()
+	local screenGui, mainFrame, scrollFrame, statusLabel, etapeLabel,
+		closeBtn, refreshBtn, executeBtn, stopBtn, toggleBtn = creerInterface()
+
+	local killTool = creerKillTool()
+
+	local function setupKillTool(tool)
+		tool.Activated:Connect(function()
+			local mouse = LocalPlayer:GetMouse()
+			local target = mouse.Target
+			if target then
+				local model = target:FindFirstAncestorOfClass("Model")
+				if model then
+					local p = Players:GetPlayerFromCharacter(model)
+					if p and p ~= LocalPlayer then
+						joueurCible = p
+						setStatus(statusLabel, "🎯 " .. p.DisplayName .. " | Lancement!", Color3.fromRGB(255, 100, 50))
+						task.spawn(function()
+							executerAction(joueurCible, statusLabel, etapeLabel)
+						end)
+					end
+				end
+			end
+		end)
+	end
+
+	setupKillTool(killTool)
+
+	LocalPlayer.CharacterAdded:Connect(function()
+		task.wait(1)
+		killTool = creerKillTool()
+		setupKillTool(killTool)
+	end)
+
+	rafraichirListe(scrollFrame, statusLabel)
+
+	toggleBtn.MouseButton1Click:Connect(function()
+		mainFrame.Visible = not mainFrame.Visible
+	end)
+
+	closeBtn.MouseButton1Click:Connect(function()
+		mainFrame.Visible = false
+	end)
+
+	refreshBtn.MouseButton1Click:Connect(function()
+		rafraichirListe(scrollFrame, statusLabel)
+		setStatus(statusLabel, "🔄 Mis à jour!", Color3.fromRGB(100, 255, 100))
+	end)
+
+	executeBtn.MouseButton1Click:Connect(function()
+		if joueurCible then
+			task.spawn(function()
+				executerAction(joueurCible, statusLabel, etapeLabel)
+			end)
+		else
+			setStatus(statusLabel, "❌ Sélectionne un joueur!", Color3.fromRGB(255, 50, 50))
+		end
+	end)
+
+	stopBtn.MouseButton1Click:Connect(function()
+		if enAction then
+			stopAction = true
+			setStatus(statusLabel, "⛔ Arrêt...", Color3.fromRGB(255, 100, 50))
+		else
+			setStatus(statusLabel, "ℹ️ Rien en cours.", Color3.fromRGB(120, 120, 120))
+		end
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, gp)
+		if gp then return end
+		if input.KeyCode == Enum.KeyCode.F6 then
+			mainFrame.Visible = not mainFrame.Visible
+		end
+	end)
+
+	Players.PlayerAdded:Connect(function()
+		task.wait(1)
+		rafraichirListe(scrollFrame, statusLabel)
+	end)
+
+	Players.PlayerRemoving:Connect(function(p)
+		task.wait(0.3)
+		if joueurCible == p then
+			joueurCible = nil
+			stopAction = true
+		end
+		rafraichirListe(scrollFrame, statusLabel)
+	end)
+
+	-- Auto refresh statut assis
+	task.spawn(function()
+		while true do
+			task.wait(2)
+			for _, child in ipairs(scrollFrame:GetChildren()) do
+				if child:IsA("TextButton") and child.Name:sub(1, 2) == "P_" then
+					local pName = child.Name:sub(3)
+					local p = Players:FindFirstChild(pName)
+					if p then
+						local assis = estDejaAssis(p)
+						local sitIcon = assis and " 🪑 ASSIS" or " ✅ DEBOUT"
+						local sel = joueurCible == p and " ◄" or ""
+						child.Text = "  👤 " .. p.DisplayName .. " (@" .. p.Name .. ")" .. sitIcon .. sel
+					end
+				end
+			end
+		end
+	end)
+
+	setStatus(statusLabel, "✅ Panel v4 chargé! [F6]", Color3.fromRGB(100, 255, 100))
+	print("[ADMIN PANEL v4] Chargé! F6 pour ouvrir.")
+end
+
+init()
