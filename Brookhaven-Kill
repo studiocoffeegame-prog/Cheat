@@ -6,16 +6,191 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGu-- LocalScript à placer dans StarterPlayerScripts ou StarterGui
+-- Panel Admin v5 FINAL
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local StarterGui = game:GetService("StarterGui")
+local TextChatService = game:GetService("TextChatService")
+
+local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Coordonnées
-local COORD_ATTENTE = Vector3.new(-86.37, 19.41, -129.45)
-local COORD_RELACHER = Vector3.new(-337.55, 52.91, -454.94)
+------------------------------------------------------------
+-- CONFIGURATION
+------------------------------------------------------------
+
+local CONFIG = {
+	COORD_ATTENTE = Vector3.new(-86.37, 19.41, -129.45),
+	COORD_RELACHER = Vector3.new(-337.55, 52.91, -454.94),
+	GAMEPASS_ID = 1811696414, -- METTRE L'ID DU GAMEPASS ICI
+	GAME_ID = 9709489907, -- METTRE L'ID DU JEU ICI (pour le lien gamepass)
+	PREFIX = ";",
+	SPAM_INTERVAL = 0.05,
+	ANTI_AFK_INTERVAL = 60,
+	GOODBYE_EMOTE = "wave",
+	GOODBYE_MESSAGE = "Goodbye! 👋",
+}
+
+------------------------------------------------------------
+-- VARIABLES GLOBALES
+------------------------------------------------------------
 
 local positionInitiale = nil
 local joueurCible = nil
 local enAction = false
 local stopAction = false
+local autoKillActif = false
+local stopAutoKill = false
+local goodbyeActif = false
+local aLeGamepass = false
+local fileAttente = {} -- Queue de joueurs à kill
+
+------------------------------------------------------------
+-- GAMEPASS CHECK
+------------------------------------------------------------
+
+local function verifierGamepass()
+	if CONFIG.GAMEPASS_ID == 0 then
+		aLeGamepass = true
+		return true
+	end
+
+	local success, hasPass = pcall(function()
+		return MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, CONFIG.GAMEPASS_ID)
+	end)
+
+	if success then
+		aLeGamepass = hasPass
+		return hasPass
+	end
+
+	aLeGamepass = false
+	return false
+end
+
+local function afficherGamepassRequis()
+	-- Créer une popup pour acheter le gamepass
+	local existing = PlayerGui:FindFirstChild("GamepassPopup")
+	if existing then existing:Destroy() end
+
+	local popup = Instance.new("ScreenGui")
+	popup.Name = "GamepassPopup"
+	popup.ResetOnSpawn = false
+	popup.Parent = PlayerGui
+
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.new(1, 0, 1, 0)
+	bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	bg.BackgroundTransparency = 0.5
+	bg.Parent = popup
+
+	local card = Instance.new("Frame")
+	card.Size = UDim2.new(0, 400, 0, 250)
+	card.Position = UDim2.new(0.5, -200, 0.5, -125)
+	card.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+	card.BorderSizePixel = 0
+	card.Parent = popup
+	local cc = Instance.new("UICorner")
+	cc.CornerRadius = UDim.new(0, 14)
+	cc.Parent = card
+	local cs = Instance.new("UIStroke")
+	cs.Color = Color3.fromRGB(255, 80, 80)
+	cs.Thickness = 2
+	cs.Parent = card
+
+	local icon = Instance.new("TextLabel")
+	icon.Size = UDim2.new(1, 0, 0, 60)
+	icon.Position = UDim2.new(0, 0, 0, 15)
+	icon.BackgroundTransparency = 1
+	icon.Text = "🔒"
+	icon.TextSize = 45
+	icon.Parent = card
+
+	local titre = Instance.new("TextLabel")
+	titre.Size = UDim2.new(1, -30, 0, 25)
+	titre.Position = UDim2.new(0, 15, 0, 75)
+	titre.BackgroundTransparency = 1
+	titre.Text = "GAMEPASS REQUIS"
+	titre.TextColor3 = Color3.fromRGB(255, 80, 80)
+	titre.TextSize = 18
+	titre.Font = Enum.Font.GothamBold
+	titre.Parent = card
+
+	local desc = Instance.new("TextLabel")
+	desc.Size = UDim2.new(1, -30, 0, 40)
+	desc.Position = UDim2.new(0, 15, 0, 105)
+	desc.BackgroundTransparency = 1
+	desc.Text = "Veuillez acheter le gamepass Admin Panel pour utiliser cette fonctionnalité."
+	desc.TextColor3 = Color3.fromRGB(180, 180, 180)
+	desc.TextSize = 13
+	desc.Font = Enum.Font.Gotham
+	desc.TextWrapped = true
+	desc.Parent = card
+
+	-- Bouton acheter
+	local acheterBtn = Instance.new("TextButton")
+	acheterBtn.Size = UDim2.new(0.45, 0, 0, 40)
+	acheterBtn.Position = UDim2.new(0.03, 0, 0, 160)
+	acheterBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+	acheterBtn.Text = "🛒 Acheter Gamepass"
+	acheterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	acheterBtn.TextSize = 13
+	acheterBtn.Font = Enum.Font.GothamBold
+	acheterBtn.BorderSizePixel = 0
+	acheterBtn.Parent = card
+	local ac = Instance.new("UICorner")
+	ac.CornerRadius = UDim.new(0, 8)
+	ac.Parent = acheterBtn
+
+	acheterBtn.MouseButton1Click:Connect(function()
+		if CONFIG.GAMEPASS_ID > 0 then
+			MarketplaceService:PromptGamePassPurchase(LocalPlayer, CONFIG.GAMEPASS_ID)
+		end
+	end)
+
+	-- Bouton fermer
+	local fermerBtn = Instance.new("TextButton")
+	fermerBtn.Size = UDim2.new(0.45, 0, 0, 40)
+	fermerBtn.Position = UDim2.new(0.52, 0, 0, 160)
+	fermerBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	fermerBtn.Text = "❌ Fermer"
+	fermerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	fermerBtn.TextSize = 13
+	fermerBtn.Font = Enum.Font.GothamBold
+	fermerBtn.BorderSizePixel = 0
+	fermerBtn.Parent = card
+	local fc = Instance.new("UICorner")
+	fc.CornerRadius = UDim.new(0, 8)
+	fc.Parent = fermerBtn
+
+	fermerBtn.MouseButton1Click:Connect(function()
+		popup:Destroy()
+	end)
+
+	-- Lien direct
+	local lienLabel = Instance.new("TextLabel")
+	lienLabel.Size = UDim2.new(1, -30, 0, 20)
+	lienLabel.Position = UDim2.new(0, 15, 0, 210)
+	lienLabel.BackgroundTransparency = 1
+	lienLabel.Text = "🔗 roblox.com/game-pass/" .. CONFIG.GAMEPASS_ID
+	lienLabel.TextColor3 = Color3.fromRGB(100, 150, 255)
+	lienLabel.TextSize = 11
+	lienLabel.Font = Enum.Font.Gotham
+	lienLabel.Parent = card
+end
+
+-- Écouter l'achat du gamepass
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
+	if player == LocalPlayer and gamePassId == CONFIG.GAMEPASS_ID and wasPurchased then
+		aLeGamepass = true
+		local existing = PlayerGui:FindFirstChild("GamepassPopup")
+		if existing then existing:Destroy() end
+	end
+end)
 
 ------------------------------------------------------------
 -- INTERFACE
@@ -30,9 +205,9 @@ local function creerInterface()
 
 	local mainFrame = Instance.new("Frame")
 	mainFrame.Name = "MainFrame"
-	mainFrame.Size = UDim2.new(0, 370, 0, 560)
-	mainFrame.Position = UDim2.new(0.5, -185, 0.5, -280)
-	mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+	mainFrame.Size = UDim2.new(0, 400, 0, 650)
+	mainFrame.Position = UDim2.new(0.5, -200, 0.5, -325)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 26)
 	mainFrame.BorderSizePixel = 0
 	mainFrame.Active = true
 	mainFrame.Draggable = true
@@ -40,63 +215,61 @@ local function creerInterface()
 	mainFrame.Parent = screenGui
 
 	local co = Instance.new("UICorner")
-	co.CornerRadius = UDim.new(0, 12)
+	co.CornerRadius = UDim.new(0, 14)
 	co.Parent = mainFrame
 
-	local st = Instance.new("UIStroke")
-	st.Color = Color3.fromRGB(100, 60, 255)
-	st.Thickness = 2
-	st.Transparency = 0.3
-	st.Parent = mainFrame
+	local stk = Instance.new("UIStroke")
+	stk.Color = Color3.fromRGB(120, 60, 255)
+	stk.Thickness = 2
+	stk.Transparency = 0.3
+	stk.Parent = mainFrame
 
 	-- Titre
 	local titleBar = Instance.new("Frame")
-	titleBar.Size = UDim2.new(1, 0, 0, 42)
-	titleBar.BackgroundColor3 = Color3.fromRGB(28, 28, 45)
+	titleBar.Size = UDim2.new(1, 0, 0, 40)
+	titleBar.BackgroundColor3 = Color3.fromRGB(24, 24, 42)
 	titleBar.BorderSizePixel = 0
 	titleBar.Parent = mainFrame
-
-	local tc = Instance.new("UICorner")
-	tc.CornerRadius = UDim.new(0, 12)
-	tc.Parent = titleBar
-
-	local tf = Instance.new("Frame")
-	tf.Size = UDim2.new(1, 0, 0, 14)
-	tf.Position = UDim2.new(0, 0, 1, -14)
-	tf.BackgroundColor3 = Color3.fromRGB(28, 28, 45)
-	tf.BorderSizePixel = 0
-	tf.Parent = titleBar
+	local tcr = Instance.new("UICorner")
+	tcr.CornerRadius = UDim.new(0, 14)
+	tcr.Parent = titleBar
+	local tfx = Instance.new("Frame")
+	tfx.Size = UDim2.new(1, 0, 0, 14)
+	tfx.Position = UDim2.new(0, 0, 1, -14)
+	tfx.BackgroundColor3 = Color3.fromRGB(24, 24, 42)
+	tfx.BorderSizePixel = 0
+	tfx.Parent = titleBar
 
 	local tl = Instance.new("TextLabel")
 	tl.Size = UDim2.new(1, -50, 1, 0)
-	tl.Position = UDim2.new(0, 14, 0, 0)
+	tl.Position = UDim2.new(0, 12, 0, 0)
 	tl.BackgroundTransparency = 1
-	tl.Text = "⚡ ADMIN PANEL v4"
-	tl.TextColor3 = Color3.fromRGB(120, 80, 255)
-	tl.TextSize = 17
+	tl.Text = "⚡ ADMIN PANEL v5"
+	tl.TextColor3 = Color3.fromRGB(140, 80, 255)
+	tl.TextSize = 16
 	tl.Font = Enum.Font.GothamBold
 	tl.TextXAlignment = Enum.TextXAlignment.Left
 	tl.Parent = titleBar
 
 	local closeBtn = Instance.new("TextButton")
-	closeBtn.Size = UDim2.new(0, 28, 0, 28)
-	closeBtn.Position = UDim2.new(1, -36, 0, 7)
+	closeBtn.Size = UDim2.new(0, 26, 0, 26)
+	closeBtn.Position = UDim2.new(1, -34, 0, 7)
 	closeBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
 	closeBtn.Text = "X"
 	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	closeBtn.TextSize = 15
+	closeBtn.TextSize = 14
 	closeBtn.Font = Enum.Font.GothamBold
 	closeBtn.BorderSizePixel = 0
 	closeBtn.Parent = titleBar
-	local cc = Instance.new("UICorner")
-	cc.CornerRadius = UDim.new(0, 6)
-	cc.Parent = closeBtn
+	local ccc = Instance.new("UICorner")
+	ccc.CornerRadius = UDim.new(0, 6)
+	ccc.Parent = closeBtn
 
 	-- Status
 	local statusLabel = Instance.new("TextLabel")
 	statusLabel.Name = "StatusLabel"
-	statusLabel.Size = UDim2.new(1, -20, 0, 50)
-	statusLabel.Position = UDim2.new(0, 10, 0, 47)
+	statusLabel.Size = UDim2.new(1, -16, 0, 42)
+	statusLabel.Position = UDim2.new(0, 8, 0, 44)
 	statusLabel.BackgroundTransparency = 1
 	statusLabel.Text = "Statut: En attente..."
 	statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -106,14 +279,55 @@ local function creerInterface()
 	statusLabel.TextWrapped = true
 	statusLabel.Parent = mainFrame
 
+	-- Options frame
+	local optFrame = Instance.new("Frame")
+	optFrame.Size = UDim2.new(1, -16, 0, 35)
+	optFrame.Position = UDim2.new(0, 8, 0, 88)
+	optFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+	optFrame.BorderSizePixel = 0
+	optFrame.Parent = mainFrame
+	local ofc = Instance.new("UICorner")
+	ofc.CornerRadius = UDim.new(0, 6)
+	ofc.Parent = optFrame
+
+	-- Toggle Goodbye
+	local goodbyeBtn = Instance.new("TextButton")
+	goodbyeBtn.Size = UDim2.new(0.48, 0, 0, 27)
+	goodbyeBtn.Position = UDim2.new(0.01, 0, 0, 4)
+	goodbyeBtn.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
+	goodbyeBtn.Text = "👋 Goodbye: OFF"
+	goodbyeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	goodbyeBtn.TextSize = 11
+	goodbyeBtn.Font = Enum.Font.GothamSemibold
+	goodbyeBtn.BorderSizePixel = 0
+	goodbyeBtn.Parent = optFrame
+	local gbc = Instance.new("UICorner")
+	gbc.CornerRadius = UDim.new(0, 6)
+	gbc.Parent = goodbyeBtn
+
+	-- Toggle Auto Kill
+	local autoKillBtn = Instance.new("TextButton")
+	autoKillBtn.Size = UDim2.new(0.48, 0, 0, 27)
+	autoKillBtn.Position = UDim2.new(0.51, 0, 0, 4)
+	autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
+	autoKillBtn.Text = "🔄 AutoKill: OFF"
+	autoKillBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	autoKillBtn.TextSize = 11
+	autoKillBtn.Font = Enum.Font.GothamSemibold
+	autoKillBtn.BorderSizePixel = 0
+	autoKillBtn.Parent = optFrame
+	local akc = Instance.new("UICorner")
+	akc.CornerRadius = UDim.new(0, 6)
+	akc.Parent = autoKillBtn
+
 	-- Sous titre
 	local pt = Instance.new("TextLabel")
-	pt.Size = UDim2.new(1, -20, 0, 18)
-	pt.Position = UDim2.new(0, 10, 0, 100)
+	pt.Size = UDim2.new(1, -16, 0, 16)
+	pt.Position = UDim2.new(0, 8, 0, 127)
 	pt.BackgroundTransparency = 1
-	pt.Text = "📋 Joueurs :"
-	pt.TextColor3 = Color3.fromRGB(150, 130, 255)
-	pt.TextSize = 13
+	pt.Text = "📋 Joueurs (multi-sélection) :"
+	pt.TextColor3 = Color3.fromRGB(140, 120, 255)
+	pt.TextSize = 12
 	pt.Font = Enum.Font.GothamSemibold
 	pt.TextXAlignment = Enum.TextXAlignment.Left
 	pt.Parent = mainFrame
@@ -121,93 +335,107 @@ local function creerInterface()
 	-- Scroll
 	local scrollFrame = Instance.new("ScrollingFrame")
 	scrollFrame.Name = "PlayerList"
-	scrollFrame.Size = UDim2.new(1, -20, 0, 230)
-	scrollFrame.Position = UDim2.new(0, 10, 0, 122)
-	scrollFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 22)
+	scrollFrame.Size = UDim2.new(1, -16, 0, 220)
+	scrollFrame.Position = UDim2.new(0, 8, 0, 146)
+	scrollFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
 	scrollFrame.BorderSizePixel = 0
-	scrollFrame.ScrollBarThickness = 5
-	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 60, 255)
+	scrollFrame.ScrollBarThickness = 4
+	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(120, 60, 255)
 	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 	scrollFrame.Parent = mainFrame
-
 	local sc2 = Instance.new("UICorner")
 	sc2.CornerRadius = UDim.new(0, 8)
 	sc2.Parent = scrollFrame
-
 	local ll = Instance.new("UIListLayout")
-	ll.Padding = UDim.new(0, 3)
+	ll.Padding = UDim.new(0, 2)
 	ll.SortOrder = Enum.SortOrder.LayoutOrder
 	ll.Parent = scrollFrame
+	local lpd = Instance.new("UIPadding")
+	lpd.PaddingTop = UDim.new(0, 3)
+	lpd.PaddingLeft = UDim.new(0, 3)
+	lpd.PaddingRight = UDim.new(0, 3)
+	lpd.Parent = scrollFrame
 
-	local lp = Instance.new("UIPadding")
-	lp.PaddingTop = UDim.new(0, 4)
-	lp.PaddingLeft = UDim.new(0, 4)
-	lp.PaddingRight = UDim.new(0, 4)
-	lp.Parent = scrollFrame
+	-- Boutons d'action
+	local btnY = 375
 
-	-- Boutons
 	local refreshBtn = Instance.new("TextButton")
-	refreshBtn.Size = UDim2.new(0.30, 0, 0, 33)
-	refreshBtn.Position = UDim2.new(0.01, 5, 0, 362)
-	refreshBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 90)
+	refreshBtn.Size = UDim2.new(0.24, 0, 0, 30)
+	refreshBtn.Position = UDim2.new(0.01, 4, 0, btnY)
+	refreshBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 80)
 	refreshBtn.Text = "🔄"
-	refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	refreshBtn.TextSize = 18
+	refreshBtn.TextSize = 16
 	refreshBtn.Font = Enum.Font.GothamBold
+	refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	refreshBtn.BorderSizePixel = 0
 	refreshBtn.Parent = mainFrame
-	local rc = Instance.new("UICorner")
-	rc.CornerRadius = UDim.new(0, 8)
-	rc.Parent = refreshBtn
+	local rcc = Instance.new("UICorner")
+	rcc.CornerRadius = UDim.new(0, 8)
+	rcc.Parent = refreshBtn
 
 	local executeBtn = Instance.new("TextButton")
-	executeBtn.Size = UDim2.new(0.33, 0, 0, 33)
-	executeBtn.Position = UDim2.new(0.33, 5, 0, 362)
-	executeBtn.BackgroundColor3 = Color3.fromRGB(170, 30, 30)
-	executeBtn.Text = "💀 KILL"
-	executeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	executeBtn.TextSize = 13
+	executeBtn.Size = UDim2.new(0.24, 0, 0, 30)
+	executeBtn.Position = UDim2.new(0.26, 4, 0, btnY)
+	executeBtn.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
+	executeBtn.Text = "💀"
+	executeBtn.TextSize = 16
 	executeBtn.Font = Enum.Font.GothamBold
+	executeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	executeBtn.BorderSizePixel = 0
 	executeBtn.Parent = mainFrame
-	local ec = Instance.new("UICorner")
-	ec.CornerRadius = UDim.new(0, 8)
-	ec.Parent = executeBtn
+	local ecc = Instance.new("UICorner")
+	ecc.CornerRadius = UDim.new(0, 8)
+	ecc.Parent = executeBtn
+
+	local killAllBtn = Instance.new("TextButton")
+	killAllBtn.Size = UDim2.new(0.24, 0, 0, 30)
+	killAllBtn.Position = UDim2.new(0.51, 4, 0, btnY)
+	killAllBtn.BackgroundColor3 = Color3.fromRGB(120, 20, 60)
+	killAllBtn.Text = "💀ALL"
+	killAllBtn.TextSize = 11
+	killAllBtn.Font = Enum.Font.GothamBold
+	killAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	killAllBtn.BorderSizePixel = 0
+	killAllBtn.Parent = mainFrame
+	local kac = Instance.new("UICorner")
+	kac.CornerRadius = UDim.new(0, 8)
+	kac.Parent = killAllBtn
 
 	local stopBtn = Instance.new("TextButton")
-	stopBtn.Size = UDim2.new(0.30, 0, 0, 33)
-	stopBtn.Position = UDim2.new(0.68, 5, 0, 362)
-	stopBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	stopBtn.Size = UDim2.new(0.24, 0, 0, 30)
+	stopBtn.Position = UDim2.new(0.76, 4, 0, btnY)
+	stopBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	stopBtn.Text = "⛔"
-	stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	stopBtn.TextSize = 18
+	stopBtn.TextSize = 16
 	stopBtn.Font = Enum.Font.GothamBold
+	stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	stopBtn.BorderSizePixel = 0
 	stopBtn.Parent = mainFrame
-	local stc = Instance.new("UICorner")
-	stc.CornerRadius = UDim.new(0, 8)
-	stc.Parent = stopBtn
+	local scc = Instance.new("UICorner")
+	scc.CornerRadius = UDim.new(0, 8)
+	scc.Parent = stopBtn
 
-	-- Étapes
+	-- Étapes / Log
 	local etapeFrame = Instance.new("Frame")
-	etapeFrame.Size = UDim2.new(1, -20, 0, 140)
-	etapeFrame.Position = UDim2.new(0, 10, 0, 405)
-	etapeFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 22)
+	etapeFrame.Size = UDim2.new(1, -16, 0, 220)
+	etapeFrame.Position = UDim2.new(0, 8, 0, 415)
+	etapeFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
 	etapeFrame.BorderSizePixel = 0
+	etapeFrame.ClipsDescendants = true
 	etapeFrame.Parent = mainFrame
-	local efc = Instance.new("UICorner")
-	efc.CornerRadius = UDim.new(0, 8)
-	efc.Parent = etapeFrame
+	local efcc = Instance.new("UICorner")
+	efcc.CornerRadius = UDim.new(0, 8)
+	efcc.Parent = etapeFrame
 
 	local etapeLabel = Instance.new("TextLabel")
 	etapeLabel.Name = "EtapeLabel"
-	etapeLabel.Size = UDim2.new(1, -10, 1, -6)
-	etapeLabel.Position = UDim2.new(0, 5, 0, 3)
+	etapeLabel.Size = UDim2.new(1, -8, 1, -4)
+	etapeLabel.Position = UDim2.new(0, 4, 0, 2)
 	etapeLabel.BackgroundTransparency = 1
-	etapeLabel.Text = "📝 Étapes:\n1. Sélectionner joueur\n2. Cliquer KILL ou Kill Tool\n3. Attend Couch + spam sur cible\n4. Cible assise → TP + relâche\n\n⚠️ Si déjà assis = abandon"
-	etapeLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+	etapeLabel.Text = "📝 Commandes chat:\n;kill <nom> - Kill un joueur\n;kill <nom1> <nom2> ... - Kill plusieurs\n;kill all - AutoKill tous\n;goodbye - Toggle goodbye\n;stop - Stop tout\n\n⚠️ Noms partiels acceptés\n🔑 [F6] Ouvrir/Fermer"
+	etapeLabel.TextColor3 = Color3.fromRGB(90, 90, 90)
 	etapeLabel.TextSize = 10
-	etapeLabel.Font = Enum.Font.Gotham
+	etapeLabel.Font = Enum.Font.Code
 	etapeLabel.TextXAlignment = Enum.TextXAlignment.Left
 	etapeLabel.TextYAlignment = Enum.TextYAlignment.Top
 	etapeLabel.TextWrapped = true
@@ -215,23 +443,24 @@ local function creerInterface()
 
 	-- Toggle
 	local toggleBtn = Instance.new("TextButton")
-	toggleBtn.Size = UDim2.new(0, 48, 0, 48)
-	toggleBtn.Position = UDim2.new(0, 10, 0.5, -24)
-	toggleBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 45)
+	toggleBtn.Size = UDim2.new(0, 46, 0, 46)
+	toggleBtn.Position = UDim2.new(0, 8, 0.5, -23)
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 42)
 	toggleBtn.Text = "⚡"
-	toggleBtn.TextSize = 22
+	toggleBtn.TextSize = 20
 	toggleBtn.BorderSizePixel = 0
 	toggleBtn.Parent = screenGui
-	local tbc = Instance.new("UICorner")
-	tbc.CornerRadius = UDim.new(0, 24)
-	tbc.Parent = toggleBtn
-	local tbs = Instance.new("UIStroke")
-	tbs.Color = Color3.fromRGB(100, 60, 255)
-	tbs.Thickness = 2
-	tbs.Parent = toggleBtn
+	local tbcc = Instance.new("UICorner")
+	tbcc.CornerRadius = UDim.new(0, 23)
+	tbcc.Parent = toggleBtn
+	local tbss = Instance.new("UIStroke")
+	tbss.Color = Color3.fromRGB(120, 60, 255)
+	tbss.Thickness = 2
+	tbss.Parent = toggleBtn
 
 	return screenGui, mainFrame, scrollFrame, statusLabel, etapeLabel,
-		closeBtn, refreshBtn, executeBtn, stopBtn, toggleBtn
+		closeBtn, refreshBtn, executeBtn, killAllBtn, stopBtn, toggleBtn,
+		goodbyeBtn, autoKillBtn
 end
 
 ------------------------------------------------------------
@@ -239,8 +468,8 @@ end
 ------------------------------------------------------------
 
 local function creerKillTool()
-	local backpack = LocalPlayer:WaitForChild("Backpack")
-	if backpack:FindFirstChild("Kill Tool") then return backpack:FindFirstChild("Kill Tool") end
+	local bp = LocalPlayer:WaitForChild("Backpack")
+	if bp:FindFirstChild("Kill Tool") then return bp:FindFirstChild("Kill Tool") end
 	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Kill Tool") then
 		return LocalPlayer.Character:FindFirstChild("Kill Tool")
 	end
@@ -249,7 +478,7 @@ local function creerKillTool()
 	tool.Name = "Kill Tool"
 	tool.RequiresHandle = true
 	tool.CanBeDropped = false
-	tool.ToolTip = "Clic sur joueur = piège Couch"
+	tool.ToolTip = "Clic sur joueur = piège"
 
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
@@ -258,7 +487,7 @@ local function creerKillTool()
 	handle.Material = Enum.Material.Neon
 	handle.Parent = tool
 
-	tool.Parent = backpack
+	tool.Parent = bp
 	return tool
 end
 
@@ -266,44 +495,32 @@ end
 -- UTILITAIRES
 ------------------------------------------------------------
 
-local function setStatus(label, text, color)
-	label.Text = "Statut: " .. text
-	label.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+local function setStatus(l, t, c)
+	l.Text = "Statut: " .. t
+	l.TextColor3 = c or Color3.fromRGB(200, 200, 200)
 end
 
-local function setEtape(label, text)
-	label.Text = text
+local function setEtape(l, t)
+	l.Text = t
 end
 
-local function tp(position)
+local function tp(pos)
 	local c = LocalPlayer.Character
 	if c then
-		local hrp = c:FindFirstChild("HumanoidRootPart")
-		if hrp then
-			hrp.CFrame = CFrame.new(position)
-			return true
-		end
+		local h = c:FindFirstChild("HumanoidRootPart")
+		if h then h.CFrame = CFrame.new(pos) return true end
 	end
 	return false
 end
 
-local function getCibleHRP(player)
-	if player and player.Character then
-		return player.Character:FindFirstChild("HumanoidRootPart")
-	end
-	return nil
-end
-
--- Vérifier si un joueur est DEJA assis (peu importe où)
-local function estDejaAssis(player)
-	if player and player.Character then
-		local hum = player.Character:FindFirstChildOfClass("Humanoid")
-		if hum then return hum.Sit == true end
+local function estDejaAssis(p)
+	if p and p.Character then
+		local h = p.Character:FindFirstChildOfClass("Humanoid")
+		if h then return h.Sit == true end
 	end
 	return false
 end
 
--- Trouver le Couch tool
 local function getCouchTool()
 	local bp = LocalPlayer:FindFirstChild("Backpack")
 	if bp and bp:FindFirstChild("Couch") then return bp:FindFirstChild("Couch") end
@@ -312,40 +529,37 @@ local function getCouchTool()
 	return nil
 end
 
-local function avoirCouch()
-	return getCouchTool() ~= nil
-end
+local function avoirCouch() return getCouchTool() ~= nil end
 
 local function equiperCouch()
 	local c = LocalPlayer.Character
-	local hum = c and c:FindFirstChildOfClass("Humanoid")
-	if not hum then return false end
-
+	local h = c and c:FindFirstChildOfClass("Humanoid")
+	if not h then return false end
 	local bp = LocalPlayer:FindFirstChild("Backpack")
-	if bp and bp:FindFirstChild("Couch") then
-		hum:EquipTool(bp:FindFirstChild("Couch"))
-		return true
-	end
+	if bp and bp:FindFirstChild("Couch") then h:EquipTool(bp:FindFirstChild("Couch")) return true end
 	if c and c:FindFirstChild("Couch") then return true end
 	return false
 end
 
 local function desequiperCouch()
 	local c = LocalPlayer.Character
-	local hum = c and c:FindFirstChildOfClass("Humanoid")
-	if hum then hum:UnequipTools() end
+	local h = c and c:FindFirstChildOfClass("Humanoid")
+	if h then h:UnequipTools() end
 end
 
-local function couchEstEquipe()
+local function couchEquipe()
 	local c = LocalPlayer.Character
 	return c and c:FindFirstChild("Couch") ~= nil
 end
 
--- Trouver TOUS les seats dans le Couch
+local function getCibleHRP(p)
+	if p and p.Character then return p.Character:FindFirstChild("HumanoidRootPart") end
+	return nil
+end
+
 local function trouverTousLesSeats()
 	local couch = getCouchTool()
 	if not couch then return {} end
-
 	local seats = {}
 	local function chercher(parent)
 		for _, child in ipairs(parent:GetChildren()) do
@@ -359,409 +573,581 @@ local function trouverTousLesSeats()
 	return seats
 end
 
--- Vérifier si la cible est assise sur UN des seats du Couch
-local function cibleSurUnSeat(cible)
+local function cibleSurSeat(cible)
 	if not cible or not cible.Character then return false end
-
 	local hum = cible.Character:FindFirstChildOfClass("Humanoid")
 	if not hum or not hum.Sit then return false end
-
 	local seats = trouverTousLesSeats()
 	for _, seat in ipairs(seats) do
-		-- Via Occupant
 		if seat.Occupant then
-			local occChar = seat.Occupant.Parent
-			if occChar then
-				local occPlayer = Players:GetPlayerFromCharacter(occChar)
-				if occPlayer == cible then return true end
+			local oc = seat.Occupant.Parent
+			if oc then
+				local op = Players:GetPlayerFromCharacter(oc)
+				if op == cible then return true end
 			end
 		end
-		-- Via SeatPart
 		if hum.SeatPart == seat then return true end
 	end
-
 	return false
 end
 
--- Spam : activer le tool (simuler un clic)
-local function spamActiverTool()
+local function spamTool()
 	local c = LocalPlayer.Character
 	if not c then return end
-
 	local couch = c:FindFirstChild("Couch")
-	if not couch then return end
+	if couch and couch:IsA("Tool") then couch:Activate() end
+end
 
-	-- Activer le tool
-	if couch:IsA("Tool") then
-		couch:Activate()
+-- Chercher un joueur par nom partiel (comme HD Admin)
+local function trouverJoueurParNom(nom)
+	nom = nom:lower()
+	local meilleur = nil
+	local meilleurScore = math.huge
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then
+			local displayLower = p.DisplayName:lower()
+			local nameLower = p.Name:lower()
+
+			-- Match exact
+			if nameLower == nom or displayLower == nom then
+				return p
+			end
+
+			-- Match partiel début
+			if nameLower:sub(1, #nom) == nom then
+				if #nameLower < meilleurScore then
+					meilleur = p
+					meilleurScore = #nameLower
+				end
+			elseif displayLower:sub(1, #nom) == nom then
+				if #displayLower < meilleurScore then
+					meilleur = p
+					meilleurScore = #displayLower
+				end
+			end
+		end
 	end
+
+	return meilleur
+end
+
+-- Envoyer un message dans le chat
+local function envoyerChat(message)
+	pcall(function()
+		-- TextChatService (nouveau système)
+		local channel = TextChatService:FindFirstChild("TextChannels")
+		if channel then
+			local rbxGeneral = channel:FindFirstChild("RBXGeneral")
+			if rbxGeneral then
+				rbxGeneral:SendAsync(message)
+				return
+			end
+		end
+	end)
+
+	pcall(function()
+		-- Ancien système
+		local chatService = game:GetService("Chat")
+		local character = LocalPlayer.Character
+		if character and character:FindFirstChild("Head") then
+			chatService:Chat(character.Head, message, Enum.ChatColor.White)
+		end
+	end)
+
+	pcall(function()
+		StarterGui:SetCore("ChatMakeSystemMessage", {
+			Text = "[Admin] " .. message,
+			Color = Color3.fromRGB(255, 200, 50),
+			Font = Enum.Font.GothamBold,
+			TextSize = 14,
+		})
+	end)
+end
+
+-- Jouer une emote
+local function jouerEmote(emoteName)
+	pcall(function()
+		local character = LocalPlayer.Character
+		if character then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				local desc = humanoid:FindFirstChildOfClass("HumanoidDescription")
+				if desc then
+					-- Essayer de jouer l'emote
+					local anim = humanoid:FindFirstChildOfClass("Animator")
+					if anim then
+						-- Chercher l'emote dans les animations
+						for _, v in ipairs(anim:GetPlayingAnimationTracks()) do
+							-- stop existing
+						end
+					end
+				end
+
+				-- Essayer via le chat emote
+				pcall(function()
+					local channel = TextChatService:FindFirstChild("TextChannels")
+					if channel then
+						local rbx = channel:FindFirstChild("RBXGeneral")
+						if rbx then
+							rbx:SendAsync("/e " .. emoteName)
+						end
+					end
+				end)
+			end
+		end
+	end)
 end
 
 ------------------------------------------------------------
--- BOUCLE DE SPAM : positionner + spam tool sur la cible
+-- GOODBYE SEQUENCE
 ------------------------------------------------------------
 
-local function boucleSpamSurCible(cible, statusLabel, etapeLabel)
+local function faireGoodbye(cible)
+	if not goodbyeActif then return end
+
+	-- Jouer l'emote wave
+	jouerEmote("wave")
+	task.wait(0.3)
+
+	-- Dire goodbye dans le chat
+	pcall(function()
+		local channel = TextChatService:FindFirstChild("TextChannels")
+		if channel then
+			local rbx = channel:FindFirstChild("RBXGeneral")
+			if rbx then
+				rbx:SendAsync("Goodbye " .. cible.DisplayName .. "! 👋")
+			end
+		end
+	end)
+
+	task.wait(1.5)
+end
+
+------------------------------------------------------------
+-- SPAM BOUCLE SUR CIBLE
+------------------------------------------------------------
+
+local function boucleSpam(cible, statusLabel, etapeLabel)
 	local compteur = 0
 
 	while not stopAction do
-		-- Vérifier cible
 		if not cible or not cible.Parent or not cible.Character then
-			setStatus(statusLabel, "⚠️ Cible perdue!", Color3.fromRGB(255, 200, 50))
 			return false
 		end
 
-		local cibleHRP = getCibleHRP(cible)
-		if not cibleHRP then
-			task.wait(0.2)
+		local hrp = getCibleHRP(cible)
+		if not hrp then
+			task.wait(0.15)
 			compteur = compteur + 1
 			continue
 		end
 
-		-- Vérifier si la cible s'est assise sur un seat du Couch
-		if cibleSurUnSeat(cible) then
-			setStatus(statusLabel, "✅ " .. cible.Name .. " ASSIS sur le Couch!", Color3.fromRGB(50, 255, 50))
+		if cibleSurSeat(cible) then
 			return true
 		end
 
-		-- Vérifier que Couch est toujours équipé
-		if not couchEstEquipe() then
+		-- Re-check si assis ailleurs → abandon
+		if estDejaAssis(cible) and not cibleSurSeat(cible) then
+			setStatus(statusLabel, "🚫 " .. cible.Name .. " assis ailleurs. Abandon.", Color3.fromRGB(255, 80, 80))
+			return false
+		end
+
+		if not couchEquipe() then
 			equiperCouch()
-			task.wait(0.05)
+			task.wait(0.03)
 		end
 
 		compteur = compteur + 1
-		local ciblePos = cibleHRP.Position
+		local pos = hrp.Position
+		local myC = LocalPlayer.Character
+		local myH = myC and myC:FindFirstChild("HumanoidRootPart")
 
-		-- Se positionner SUR la cible
-		local myChar = LocalPlayer.Character
-		local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-		if myHRP then
-			myHRP.CFrame = CFrame.new(ciblePos)
+		if myH then
+			myH.CFrame = CFrame.new(pos)
 		end
 
-		-- Positionner tous les seats du Couch sur la cible
 		local seats = trouverTousLesSeats()
 		for i, seat in ipairs(seats) do
-			-- Décaler légèrement chaque seat pour couvrir plus de zone
-			local offset = Vector3.new(0, -0.5 + (i - 1) * 0.2, 0)
-			seat.CFrame = CFrame.new(ciblePos + offset)
+			local off = Vector3.new(0, -0.5 + (i - 1) * 0.15, 0)
+			seat.CFrame = CFrame.new(pos + off)
 		end
 
-		-- Positionner le Handle aussi
 		local couch = getCouchTool()
 		if couch then
 			local handle = couch:FindFirstChild("Handle")
 			if handle then
-				handle.CFrame = CFrame.new(ciblePos + Vector3.new(0, -0.5, 0))
+				handle.CFrame = CFrame.new(pos + Vector3.new(0, -0.5, 0))
 			end
 		end
 
-		-- SPAM : activer le tool en continu
-		spamActiverTool()
+		spamTool()
 
-		-- Affichage
-		local dots = string.rep(".", compteur % 4)
-		local nbSeats = #seats
+		if compteur % 10 == 0 then
+			local d = string.rep(".", (compteur / 10) % 4)
+			setStatus(statusLabel,
+				"🔄 Spam " .. cible.Name .. d .. " #" .. compteur .. " | " .. #seats .. " seats",
+				Color3.fromRGB(100, 200, 255)
+			)
+			setEtape(etapeLabel,
+				"⚡ SPAM ACTIF\n"
+				.. "━━━━━━━━━━━━━━━\n"
+				.. "🎯 " .. cible.Name .. "\n"
+				.. "📍 " .. math.floor(pos.X) .. "," .. math.floor(pos.Y) .. "," .. math.floor(pos.Z) .. "\n"
+				.. "🔄 #" .. compteur .. " | 🪑 " .. #seats .. " seats\n"
+				.. "⏳ Attente assise..."
+			)
+		end
 
-		setStatus(statusLabel,
-			"🔄 Spam Couch sur " .. cible.Name .. dots .. " (" .. compteur .. "x) | " .. nbSeats .. " seats",
-			Color3.fromRGB(100, 200, 255)
-		)
-
-		setEtape(etapeLabel,
-			"⚡ ÉTAPE 5 - SPAM ACTIF\n"
-			.. "━━━━━━━━━━━━━━━━\n"
-			.. "🎯 Cible: " .. cible.Name .. "\n"
-			.. "📍 " .. math.floor(ciblePos.X) .. ", " .. math.floor(ciblePos.Y) .. ", " .. math.floor(ciblePos.Z) .. "\n"
-			.. "🔄 Spam #" .. compteur .. "\n"
-			.. "🪑 Seats: " .. nbSeats .. " positionnés\n"
-			.. "⏳ Attente assise..."
-		)
-
-		task.wait(0.05) -- Spam très rapide : 20x par seconde
+		task.wait(CONFIG.SPAM_INTERVAL)
 	end
 
 	return false
 end
 
 ------------------------------------------------------------
--- LOGIQUE PRINCIPALE
+-- KILL UN JOUEUR (action complète)
 ------------------------------------------------------------
 
-local function executerAction(cible, statusLabel, etapeLabel)
-	if enAction then
-		setStatus(statusLabel, "⚠️ Déjà en cours!", Color3.fromRGB(255, 200, 50))
-		return
-	end
+local function killJoueur(cible, statusLabel, etapeLabel)
+	if not cible then return false end
 
-	if not cible then
-		setStatus(statusLabel, "❌ Aucune cible!", Color3.fromRGB(255, 50, 50))
-		return
-	end
-
-	if not cible.Character or not getCibleHRP(cible) then
-		setStatus(statusLabel, "❌ Cible sans personnage!", Color3.fromRGB(255, 50, 50))
-		return
-	end
-
-	----------------------------------------------------
-	-- CHECK : Si le joueur est DEJA assis → ABANDON
-	----------------------------------------------------
 	if estDejaAssis(cible) then
-		setStatus(statusLabel, "🚫 ABANDON - " .. cible.Name .. " est déjà assis!", Color3.fromRGB(255, 80, 80))
-		setEtape(etapeLabel,
-			"🚫 ABANDON\n"
-			.. "━━━━━━━━━━━━━━━━\n"
-			.. "❌ " .. cible.Name .. " est déjà assis\n"
-			.. "❌ Impossible de le piéger\n"
-			.. "💡 Attends qu'il se lève\n"
-			.. "💡 Puis relance l'action"
-		)
-		return
+		setStatus(statusLabel, "🚫 " .. cible.Name .. " déjà assis. Skip.", Color3.fromRGB(255, 80, 80))
+		setEtape(etapeLabel, "🚫 SKIP: " .. cible.Name .. " déjà assis")
+		return false
 	end
 
-	enAction = true
-	stopAction = false
+	-- GOODBYE
+	if goodbyeActif then
+		setStatus(statusLabel, "👋 Goodbye " .. cible.Name .. "...", Color3.fromRGB(255, 200, 100))
+		setEtape(etapeLabel, "👋 GOODBYE\n━━━━━━━━━━━━━━━\n🎯 " .. cible.Name .. "\n👋 Wave + message...")
+		faireGoodbye(cible)
 
-	----------------------------------------------------
-	-- ETAPE 1 : Sauvegarder position
-	----------------------------------------------------
-	setEtape(etapeLabel,
-		"📌 ÉTAPE 1 - SAUVEGARDE\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "📍 Sauvegarde position..."
-	)
+		if stopAction then return false end
 
-	local myChar = LocalPlayer.Character
-	if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-		positionInitiale = myChar.HumanoidRootPart.Position
+		-- Re-check après goodbye
+		if estDejaAssis(cible) then
+			setStatus(statusLabel, "🚫 " .. cible.Name .. " assis pendant goodbye.", Color3.fromRGB(255, 80, 80))
+			return false
+		end
 	end
 
-	setStatus(statusLabel, "📍 Position sauvegardée", Color3.fromRGB(100, 200, 255))
-	setEtape(etapeLabel,
-		"📌 ÉTAPE 1 ✅\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "📍 " .. math.floor(positionInitiale.X) .. ", " .. math.floor(positionInitiale.Y) .. ", " .. math.floor(positionInitiale.Z)
-	)
-	task.wait(0.3)
-
-	if stopAction then
-		enAction = false
-		return
+	-- Sauvegarder position
+	local myC = LocalPlayer.Character
+	if myC and myC:FindFirstChild("HumanoidRootPart") then
+		positionInitiale = myC.HumanoidRootPart.Position
 	end
 
-	----------------------------------------------------
-	-- ETAPE 2 : TP zone attente
-	----------------------------------------------------
-	setEtape(etapeLabel,
-		"➡️ ÉTAPE 2 - TP ATTENTE\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "📍 → " .. COORD_ATTENTE.X .. ", " .. COORD_ATTENTE.Y .. ", " .. COORD_ATTENTE.Z
-	)
-	setStatus(statusLabel, "➡️ TP zone attente...", Color3.fromRGB(100, 200, 255))
-
-	tp(COORD_ATTENTE)
-	task.wait(0.5)
+	-- TP attente
+	setStatus(statusLabel, "➡️ TP attente...", Color3.fromRGB(100, 200, 255))
+	setEtape(etapeLabel, "📌 KILL: " .. cible.Name .. "\n━━━━━━━━━━━━━━━\n➡️ TP zone attente...")
+	tp(CONFIG.COORD_ATTENTE)
+	task.wait(0.4)
 
 	if stopAction then
 		if positionInitiale then tp(positionInitiale) end
-		enAction = false
-		return
+		return false
 	end
 
-	----------------------------------------------------
-	-- ETAPE 3 : Attendre Couch
-	----------------------------------------------------
+	-- Attendre Couch
 	local t = 0
-	local tMax = 180
+	while not avoirCouch() and t < 180 and not stopAction do
+		task.wait(0.3)
+		t = t + 0.3
+		if math.floor(t) % 3 == 0 then
+			setStatus(statusLabel, "⏳ Couch... " .. math.floor(t) .. "s", Color3.fromRGB(255, 200, 50))
+		end
 
-	while not avoirCouch() and t < tMax and not stopAction do
-		task.wait(0.4)
-		t = t + 0.4
-		local d = string.rep(".", math.floor(t) % 4)
-
-		setStatus(statusLabel, "⏳ Attente Couch" .. d .. " (" .. math.floor(t) .. "s)", Color3.fromRGB(255, 200, 50))
-		setEtape(etapeLabel,
-			"📦 ÉTAPE 3 - ATTENTE COUCH\n"
-			.. "━━━━━━━━━━━━━━━━\n"
-			.. "⏳ " .. math.floor(t) .. "s / " .. tMax .. "s\n"
-			.. "📦 Recherche dans inventaire...\n"
-			.. "🔍 Couch non trouvé"
-		)
-
-		-- RE-CHECK : si la cible s'est assise entre-temps → abandon
 		if estDejaAssis(cible) then
-			setStatus(statusLabel, "🚫 ABANDON - " .. cible.Name .. " s'est assis!", Color3.fromRGB(255, 80, 80))
+			setStatus(statusLabel, "🚫 " .. cible.Name .. " assis. Abandon.", Color3.fromRGB(255, 80, 80))
 			if positionInitiale then tp(positionInitiale) end
-			enAction = false
-			return
+			return false
 		end
 	end
 
 	if stopAction then
 		if positionInitiale then tp(positionInitiale) end
-		enAction = false
-		return
+		return false
 	end
 
 	if not avoirCouch() then
-		setStatus(statusLabel, "❌ Timeout Couch!", Color3.fromRGB(255, 50, 50))
+		setStatus(statusLabel, "❌ Timeout Couch", Color3.fromRGB(255, 50, 50))
 		if positionInitiale then tp(positionInitiale) end
-		enAction = false
-		return
+		return false
 	end
 
-	setStatus(statusLabel, "✅ Couch obtenu!", Color3.fromRGB(50, 255, 50))
-	setEtape(etapeLabel, "📦 ÉTAPE 3 ✅\n━━━━━━━━━━━━━━━━\n✅ Couch trouvé!")
-	task.wait(0.2)
-
-	----------------------------------------------------
-	-- ETAPE 4 : Équiper Couch
-	----------------------------------------------------
-	setEtape(etapeLabel,
-		"🛋️ ÉTAPE 4 - ÉQUIPEMENT\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "🛋️ Équipement Couch..."
-	)
-
+	-- Équiper
 	equiperCouch()
 	task.wait(0.3)
 
-	if not couchEstEquipe() then
-		equiperCouch()
-		task.wait(0.2)
-	end
-
-	-- RE-CHECK avant de spam
 	if estDejaAssis(cible) then
-		setStatus(statusLabel, "🚫 ABANDON - " .. cible.Name .. " s'est assis!", Color3.fromRGB(255, 80, 80))
 		desequiperCouch()
 		if positionInitiale then tp(positionInitiale) end
-		enAction = false
-		return
+		return false
 	end
 
-	setEtape(etapeLabel, "🛋️ ÉTAPE 4 ✅\n━━━━━━━━━━━━━━━━\n✅ Couch équipé!")
-	task.wait(0.2)
+	-- Spam
+	setStatus(statusLabel, "🔄 Spam sur " .. cible.Name .. "...", Color3.fromRGB(100, 200, 255))
+	local ok = boucleSpam(cible, statusLabel, etapeLabel)
 
 	if stopAction then
 		desequiperCouch()
 		if positionInitiale then tp(positionInitiale) end
-		enAction = false
-		return
+		return false
 	end
 
-	----------------------------------------------------
-	-- ETAPE 5 : SPAM Couch sur la cible
-	----------------------------------------------------
-	setEtape(etapeLabel,
-		"⚡ ÉTAPE 5 - SPAM\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "🎯 Cible: " .. cible.Name .. "\n"
-		.. "🔄 Lancement spam..."
-	)
-
-	local reussi = boucleSpamSurCible(cible, statusLabel, etapeLabel)
-
-	if stopAction then
+	if not ok then
 		desequiperCouch()
 		if positionInitiale then tp(positionInitiale) end
-		enAction = false
-		setStatus(statusLabel, "⛔ Stoppé. Retour.", Color3.fromRGB(150, 150, 150))
-		return
+		return false
 	end
 
-	if not reussi then
-		setStatus(statusLabel, "❌ Échec!", Color3.fromRGB(255, 50, 50))
-		desequiperCouch()
-		if positionInitiale then tp(positionInitiale) end
-		enAction = false
-		return
-	end
-
-	----------------------------------------------------
-	-- ETAPE 6 : Cible assise → TP aux coordonnées RELACHER
-	-- COUCH RESTE EN MAIN !
-	----------------------------------------------------
+	-- Assis! TP relâcher (COUCH EN MAIN)
+	setStatus(statusLabel, "🪑 " .. cible.Name .. " ASSIS! TP relâche...", Color3.fromRGB(50, 255, 100))
 	setEtape(etapeLabel,
-		"🪑 ÉTAPE 6 - CIBLE ASSISE!\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "✅ " .. cible.Name .. " est sur le Couch!\n"
-		.. "🛋️ Couch EN MAIN\n"
-		.. "➡️ TP vers zone de relâche..."
+		"✅ ASSIS!\n━━━━━━━━━━━━━━━\n🪑 " .. cible.Name .. " sur Couch\n➡️ TP relâche avec Couch..."
 	)
-	setStatus(statusLabel, "🪑 ASSIS! TP avec Couch en main...", Color3.fromRGB(50, 255, 100))
 	task.wait(0.2)
+	tp(CONFIG.COORD_RELACHER)
+	task.wait(0.4)
 
-	-- TP avec Couch EN MAIN (cible reste assise)
-	tp(COORD_RELACHER)
-	task.wait(0.5)
-
-	setEtape(etapeLabel,
-		"📍 ÉTAPE 6 ✅\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "📍 Arrivé: -337.55, 52.91, -454.94\n"
-		.. "🪑 " .. cible.Name .. " toujours assis\n"
-		.. "🛋️ Couch toujours en main"
-	)
+	-- MAINTENANT lâcher
+	desequiperCouch()
 	task.wait(0.3)
 
-	----------------------------------------------------
-	-- ETAPE 7 : MAINTENANT on lâche le Couch
-	----------------------------------------------------
 	setEtape(etapeLabel,
-		"📦 ÉTAPE 7 - RELÂCHE\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "🛋️ Déséquipement Couch...\n"
-		.. "📦 → Inventaire"
-	)
-	setStatus(statusLabel, "📦 Relâche du Couch...", Color3.fromRGB(255, 200, 50))
-
-	desequiperCouch()
-	task.wait(0.5)
-
-	setEtape(etapeLabel,
-		"📦 ÉTAPE 7 ✅\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "✅ Couch lâché\n"
-		.. "🪑 " .. cible.Name .. " relâché ici"
+		"✅ KILL RÉUSSI\n━━━━━━━━━━━━━━━\n🎯 " .. cible.Name .. "\n📍 Relâché à: -337.55, 52.91, -454.94\n📦 Couch lâché"
 	)
 
-	----------------------------------------------------
-	-- ETAPE 8 : Retour position initiale
-	----------------------------------------------------
-	setEtape(etapeLabel,
-		"🏠 ÉTAPE 8 - RETOUR\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "🏠 TP position de départ..."
-	)
-	setStatus(statusLabel, "🏠 Retour...", Color3.fromRGB(150, 255, 150))
-	task.wait(0.5)
+	-- Retour
+	if positionInitiale then tp(positionInitiale) end
+	task.wait(0.3)
 
-	if positionInitiale then
-		tp(positionInitiale)
-	end
-
-	task.wait(0.5)
-
-	setEtape(etapeLabel,
-		"✅ TERMINÉ!\n"
-		.. "━━━━━━━━━━━━━━━━\n"
-		.. "🎯 " .. cible.Name .. " piégé!\n"
-		.. "📍 Relâché à: -337.55, 52.91, -454.94\n"
-		.. "🏠 Retour effectué\n"
-		.. "\n💡 Prêt pour une nouvelle cible"
-	)
-	setStatus(statusLabel, "✅ " .. cible.Name .. " piégé et relâché! Prêt.", Color3.fromRGB(50, 255, 50))
-
-	joueurCible = nil
-	enAction = false
+	setStatus(statusLabel, "✅ " .. cible.Name .. " kill! ✓", Color3.fromRGB(50, 255, 50))
+	return true
 end
 
 ------------------------------------------------------------
--- LISTE JOUEURS
+-- KILL MULTIPLE (file d'attente)
 ------------------------------------------------------------
+
+local function killMultiple(joueurs, statusLabel, etapeLabel)
+	local total = #joueurs
+	local kills = 0
+
+	for i, cible in ipairs(joueurs) do
+		if stopAction or stopAutoKill then break end
+
+		setEtape(etapeLabel,
+			"📋 FILE D'ATTENTE\n"
+			.. "━━━━━━━━━━━━━━━\n"
+			.. "🎯 " .. i .. "/" .. total .. " : " .. cible.Name .. "\n"
+			.. "✅ Kills: " .. kills .. "\n"
+			.. "⏳ En cours..."
+		)
+
+		local ok = killJoueur(cible, statusLabel, etapeLabel)
+		if ok then kills = kills + 1 end
+
+		if i < total and not stopAction then
+			setStatus(statusLabel, "⏳ Prochain dans 2s...", Color3.fromRGB(200, 200, 100))
+			task.wait(2)
+		end
+	end
+
+	setEtape(etapeLabel,
+		"📋 FILE TERMINÉE\n"
+		.. "━━━━━━━━━━━━━━━\n"
+		.. "✅ " .. kills .. "/" .. total .. " kills réussis\n"
+		.. "🏠 Terminé!"
+	)
+	setStatus(statusLabel, "✅ " .. kills .. "/" .. total .. " kills! Prêt.", Color3.fromRGB(50, 255, 50))
+end
+
+------------------------------------------------------------
+-- AUTO KILL
+------------------------------------------------------------
+
+local function autoKillLoop(statusLabel, etapeLabel)
+	while autoKillActif and not stopAutoKill do
+		-- Trouver un joueur aléatoire non assis
+		local candidats = {}
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer and not estDejaAssis(p) and p.Character and getCibleHRP(p) then
+				table.insert(candidats, p)
+			end
+		end
+
+		if #candidats == 0 then
+			setStatus(statusLabel, "🔄 AutoKill: Aucun joueur dispo. Attente...", Color3.fromRGB(255, 200, 50))
+			setEtape(etapeLabel, "🔄 AUTO KILL\n━━━━━━━━━━━━━━━\n⏳ Aucun joueur disponible\n🔍 Recherche...")
+			task.wait(3)
+			continue
+		end
+
+		-- Choisir aléatoirement
+		local cible = candidats[math.random(1, #candidats)]
+		setStatus(statusLabel, "🔄 AutoKill → " .. cible.Name, Color3.fromRGB(255, 150, 50))
+
+		stopAction = false
+		enAction = true
+		local ok = killJoueur(cible, statusLabel, etapeLabel)
+		enAction = false
+
+		if ok then
+			setEtape(etapeLabel,
+				"🔄 AUTO KILL\n━━━━━━━━━━━━━━━\n✅ " .. cible.Name .. " kill!\n⏳ Prochain dans 3s..."
+			)
+		end
+
+		if autoKillActif and not stopAutoKill then
+			task.wait(3)
+		end
+	end
+
+	setStatus(statusLabel, "⛔ AutoKill arrêté.", Color3.fromRGB(150, 150, 150))
+end
+
+------------------------------------------------------------
+-- ANTI AFK
+------------------------------------------------------------
+
+local function demarrerAntiAFK()
+	task.spawn(function()
+		local VirtualUser = game:GetService("VirtualUser")
+		while true do
+			task.wait(CONFIG.ANTI_AFK_INTERVAL)
+			pcall(function()
+				VirtualUser:CaptureController()
+				VirtualUser:ClickButton2(Vector2.new())
+			end)
+		end
+	end)
+
+	-- Aussi empêcher l'idle kick
+	pcall(function()
+		local vu = game:GetService("VirtualUser")
+		LocalPlayer.Idled:Connect(function()
+			pcall(function()
+				vu:CaptureController()
+				vu:ClickButton2(Vector2.new())
+			end)
+		end)
+	end)
+end
+
+------------------------------------------------------------
+-- COMMANDES CHAT
+------------------------------------------------------------
+
+local function setupChatCommands(statusLabel, etapeLabel)
+	-- Nouveau système TextChatService
+	pcall(function()
+		TextChatService.SendingMessage:Connect(function(msg)
+			-- Ce event n'existe pas toujours, on utilise MessageReceived
+		end)
+	end)
+
+	-- Utiliser l'event de chat du joueur
+	pcall(function()
+		LocalPlayer.Chatted:Connect(function(message)
+			local msg = message:lower():gsub("^%s+", ""):gsub("%s+$", "")
+
+			if not msg:sub(1, #CONFIG.PREFIX) == CONFIG.PREFIX then return end
+			local cmd = msg:sub(#CONFIG.PREFIX + 1)
+
+			-- ;stop
+			if cmd == "stop" then
+				stopAction = true
+				stopAutoKill = true
+				autoKillActif = false
+				setStatus(statusLabel, "⛔ STOP via chat.", Color3.fromRGB(255, 100, 50))
+				return
+			end
+
+			-- ;goodbye
+			if cmd == "goodbye" then
+				goodbyeActif = not goodbyeActif
+				local state = goodbyeActif and "ON" or "OFF"
+				setStatus(statusLabel, "👋 Goodbye: " .. state, Color3.fromRGB(255, 200, 100))
+				return
+			end
+
+			-- ;kill all
+			if cmd == "kill all" then
+				if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
+					afficherGamepassRequis()
+					return
+				end
+
+				autoKillActif = true
+				stopAutoKill = false
+				setStatus(statusLabel, "🔄 AutoKill ALL activé via chat!", Color3.fromRGB(255, 100, 50))
+				task.spawn(function()
+					autoKillLoop(statusLabel, etapeLabel)
+				end)
+				return
+			end
+
+			-- ;kill <nom1> <nom2> ...
+			if cmd:sub(1, 5) == "kill " then
+				if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
+					afficherGamepassRequis()
+					return
+				end
+
+				local args = cmd:sub(6)
+				local noms = {}
+				for nom in args:gmatch("%S+") do
+					table.insert(noms, nom)
+				end
+
+				if #noms == 0 then
+					setStatus(statusLabel, "❌ ;kill <nom>", Color3.fromRGB(255, 50, 50))
+					return
+				end
+
+				local joueursTrouvés = {}
+				local nonTrouvés = {}
+
+				for _, nom in ipairs(noms) do
+					local p = trouverJoueurParNom(nom)
+					if p then
+						table.insert(joueursTrouvés, p)
+					else
+						table.insert(nonTrouvés, nom)
+					end
+				end
+
+				if #nonTrouvés > 0 then
+					setStatus(statusLabel, "⚠️ Non trouvé: " .. table.concat(nonTrouvés, ", "), Color3.fromRGB(255, 200, 50))
+				end
+
+				if #joueursTrouvés > 0 then
+					stopAction = false
+					local names = {}
+					for _, p in ipairs(joueursTrouvés) do table.insert(names, p.Name) end
+					setStatus(statusLabel, "💀 Kill: " .. table.concat(names, ", "), Color3.fromRGB(255, 100, 50))
+
+					task.spawn(function()
+						enAction = true
+						killMultiple(joueursTrouvés, statusLabel, etapeLabel)
+						enAction = false
+					end)
+				end
+
+				return
+			end
+		end)
+	end)
+end
+
+------------------------------------------------------------
+-- LISTE JOUEURS (multi-sélection)
+------------------------------------------------------------
+
+local joueursSelectionnes = {}
 
 local function rafraichirListe(scrollFrame, statusLabel)
 	for _, child in ipairs(scrollFrame:GetChildren()) do
@@ -775,72 +1161,91 @@ local function rafraichirListe(scrollFrame, statusLabel)
 
 			local btn = Instance.new("TextButton")
 			btn.Name = "P_" .. player.Name
-			btn.Size = UDim2.new(1, -8, 0, 34)
-			btn.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+			btn.Size = UDim2.new(1, -6, 0, 30)
+			btn.BackgroundColor3 = Color3.fromRGB(24, 24, 38)
 			btn.BorderSizePixel = 0
 			btn.Font = Enum.Font.GothamSemibold
-			btn.TextSize = 11
-			btn.TextColor3 = Color3.fromRGB(210, 210, 210)
+			btn.TextSize = 10
+			btn.TextColor3 = Color3.fromRGB(200, 200, 200)
 			btn.TextXAlignment = Enum.TextXAlignment.Left
 			btn.Parent = scrollFrame
 
 			local assis = estDejaAssis(player)
-			local sitIcon = assis and " 🪑 ASSIS" or " ✅ DEBOUT"
-			local sitColor = assis and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(100, 255, 100)
-
-			btn.Text = "  👤 " .. player.DisplayName .. " (@" .. player.Name .. ")" .. sitIcon
+			local si = assis and " 🪑" or " ✅"
+			local selected = joueursSelectionnes[player.Name] and " ◄" or ""
+			btn.Text = "  👤 " .. player.DisplayName .. " (@" .. player.Name .. ")" .. si .. selected
 
 			local bc = Instance.new("UICorner")
-			bc.CornerRadius = UDim.new(0, 6)
+			bc.CornerRadius = UDim.new(0, 5)
 			bc.Parent = btn
 
+			if joueursSelectionnes[player.Name] then
+				btn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+				btn.TextColor3 = Color3.fromRGB(255, 120, 120)
+			end
+
 			btn.MouseEnter:Connect(function()
-				if joueurCible ~= player then
-					btn.BackgroundColor3 = Color3.fromRGB(42, 42, 65)
+				if not joueursSelectionnes[player.Name] then
+					btn.BackgroundColor3 = Color3.fromRGB(38, 38, 58)
 				end
 			end)
 			btn.MouseLeave:Connect(function()
-				if joueurCible ~= player then
-					btn.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+				if not joueursSelectionnes[player.Name] then
+					btn.BackgroundColor3 = Color3.fromRGB(24, 24, 38)
 				end
 			end)
 
 			btn.MouseButton1Click:Connect(function()
-				for _, c in ipairs(scrollFrame:GetChildren()) do
-					if c:IsA("TextButton") then
-						c.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
-						c.TextColor3 = Color3.fromRGB(210, 210, 210)
-					end
+				-- Toggle sélection
+				if joueursSelectionnes[player.Name] then
+					joueursSelectionnes[player.Name] = nil
+					btn.BackgroundColor3 = Color3.fromRGB(24, 24, 38)
+					btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+				else
+					joueursSelectionnes[player.Name] = true
+					btn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+					btn.TextColor3 = Color3.fromRGB(255, 120, 120)
 				end
 
-				-- Si déjà assis : avertissement
-				if estDejaAssis(player) then
-					setStatus(statusLabel, "⚠️ " .. player.Name .. " est assis! Action impossible.", Color3.fromRGB(255, 150, 50))
-				end
+				-- Compter sélectionnés
+				local nb = 0
+				for _ in pairs(joueursSelectionnes) do nb = nb + 1 end
+				setStatus(statusLabel, "🎯 " .. nb .. " joueur(s) sélectionné(s)", Color3.fromRGB(255, 150, 100))
 
-				joueurCible = player
-				btn.BackgroundColor3 = Color3.fromRGB(55, 20, 20)
-				btn.TextColor3 = Color3.fromRGB(255, 100, 100)
-				setStatus(statusLabel, "🎯 Cible: " .. player.DisplayName, Color3.fromRGB(255, 150, 100))
+				-- Mettre à jour le texte
+				local asi = estDejaAssis(player) and " 🪑" or " ✅"
+				local sel = joueursSelectionnes[player.Name] and " ◄" or ""
+				btn.Text = "  👤 " .. player.DisplayName .. " (@" .. player.Name .. ")" .. asi .. sel
 			end)
 		end
 	end
 
 	local layout = scrollFrame:FindFirstChildOfClass("UIListLayout")
 	if layout then
-		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
 	end
 
 	if count == 0 then
 		local lbl = Instance.new("TextLabel")
-		lbl.Size = UDim2.new(1, 0, 0, 40)
+		lbl.Size = UDim2.new(1, 0, 0, 30)
 		lbl.BackgroundTransparency = 1
-		lbl.Text = "Aucun autre joueur"
-		lbl.TextColor3 = Color3.fromRGB(70, 70, 70)
-		lbl.TextSize = 11
+		lbl.Text = "Aucun joueur"
+		lbl.TextColor3 = Color3.fromRGB(60, 60, 60)
+		lbl.TextSize = 10
 		lbl.Font = Enum.Font.Gotham
 		lbl.Parent = scrollFrame
 	end
+end
+
+local function getJoueursSelectionnes()
+	local liste = {}
+	for name, _ in pairs(joueursSelectionnes) do
+		local p = Players:FindFirstChild(name)
+		if p and p ~= LocalPlayer then
+			table.insert(liste, p)
+		end
+	end
+	return liste
 end
 
 ------------------------------------------------------------
@@ -848,13 +1253,27 @@ end
 ------------------------------------------------------------
 
 local function init()
-	local screenGui, mainFrame, scrollFrame, statusLabel, etapeLabel,
-		closeBtn, refreshBtn, executeBtn, stopBtn, toggleBtn = creerInterface()
+	-- Vérifier gamepass
+	verifierGamepass()
 
+	-- Anti AFK
+	demarrerAntiAFK()
+
+	-- Interface
+	local screenGui, mainFrame, scrollFrame, statusLabel, etapeLabel,
+		closeBtn, refreshBtn, executeBtn, killAllBtn, stopBtn, toggleBtn,
+		goodbyeBtn, autoKillBtn = creerInterface()
+
+	-- Kill Tool
 	local killTool = creerKillTool()
 
 	local function setupKillTool(tool)
 		tool.Activated:Connect(function()
+			if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
+				afficherGamepassRequis()
+				return
+			end
+
 			local mouse = LocalPlayer:GetMouse()
 			local target = mouse.Target
 			if target then
@@ -862,10 +1281,12 @@ local function init()
 				if model then
 					local p = Players:GetPlayerFromCharacter(model)
 					if p and p ~= LocalPlayer then
-						joueurCible = p
-						setStatus(statusLabel, "🎯 " .. p.DisplayName .. " | Lancement!", Color3.fromRGB(255, 100, 50))
+						setStatus(statusLabel, "🎯 " .. p.DisplayName .. " via Kill Tool!", Color3.fromRGB(255, 100, 50))
+						stopAction = false
 						task.spawn(function()
-							executerAction(joueurCible, statusLabel, etapeLabel)
+							enAction = true
+							killJoueur(p, statusLabel, etapeLabel)
+							enAction = false
 						end)
 					end
 				end
@@ -881,9 +1302,19 @@ local function init()
 		setupKillTool(killTool)
 	end)
 
+	-- Chat commands
+	setupChatCommands(statusLabel, etapeLabel)
+
+	-- Refresh liste
 	rafraichirListe(scrollFrame, statusLabel)
 
+	-- BOUTONS
+
 	toggleBtn.MouseButton1Click:Connect(function()
+		if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
+			afficherGamepassRequis()
+			return
+		end
 		mainFrame.Visible = not mainFrame.Visible
 	end)
 
@@ -896,32 +1327,118 @@ local function init()
 		setStatus(statusLabel, "🔄 Mis à jour!", Color3.fromRGB(100, 255, 100))
 	end)
 
+	-- Kill sélectionnés
 	executeBtn.MouseButton1Click:Connect(function()
-		if joueurCible then
-			task.spawn(function()
-				executerAction(joueurCible, statusLabel, etapeLabel)
-			end)
-		else
-			setStatus(statusLabel, "❌ Sélectionne un joueur!", Color3.fromRGB(255, 50, 50))
+		if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
+			afficherGamepassRequis()
+			return
 		end
+
+		local sel = getJoueursSelectionnes()
+		if #sel == 0 then
+			setStatus(statusLabel, "❌ Sélectionne des joueurs!", Color3.fromRGB(255, 50, 50))
+			return
+		end
+
+		stopAction = false
+		task.spawn(function()
+			enAction = true
+			killMultiple(sel, statusLabel, etapeLabel)
+			enAction = false
+			joueursSelectionnes = {}
+			rafraichirListe(scrollFrame, statusLabel)
+		end)
 	end)
 
+	-- Kill All
+	killAllBtn.MouseButton1Click:Connect(function()
+		if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
+			afficherGamepassRequis()
+			return
+		end
+
+		autoKillActif = true
+		stopAutoKill = false
+		stopAction = false
+
+		autoKillBtn.Text = "🔄 AutoKill: ON"
+		autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 30)
+
+		setStatus(statusLabel, "🔄 AutoKill ALL activé!", Color3.fromRGB(255, 100, 50))
+
+		task.spawn(function()
+			autoKillLoop(statusLabel, etapeLabel)
+			autoKillBtn.Text = "🔄 AutoKill: OFF"
+			autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
+		end)
+	end)
+
+	-- Stop
 	stopBtn.MouseButton1Click:Connect(function()
-		if enAction then
-			stopAction = true
-			setStatus(statusLabel, "⛔ Arrêt...", Color3.fromRGB(255, 100, 50))
+		stopAction = true
+		stopAutoKill = true
+		autoKillActif = false
+		autoKillBtn.Text = "🔄 AutoKill: OFF"
+		autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
+		setStatus(statusLabel, "⛔ STOP!", Color3.fromRGB(255, 100, 50))
+	end)
+
+	-- Toggle Goodbye
+	goodbyeBtn.MouseButton1Click:Connect(function()
+		goodbyeActif = not goodbyeActif
+		if goodbyeActif then
+			goodbyeBtn.Text = "👋 Goodbye: ON"
+			goodbyeBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 30)
+			setStatus(statusLabel, "👋 Goodbye activé!", Color3.fromRGB(100, 255, 100))
 		else
-			setStatus(statusLabel, "ℹ️ Rien en cours.", Color3.fromRGB(120, 120, 120))
+			goodbyeBtn.Text = "👋 Goodbye: OFF"
+			goodbyeBtn.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
+			setStatus(statusLabel, "👋 Goodbye désactivé.", Color3.fromRGB(200, 200, 200))
 		end
 	end)
 
+	-- Toggle AutoKill
+	autoKillBtn.MouseButton1Click:Connect(function()
+		if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
+			afficherGamepassRequis()
+			return
+		end
+
+		if autoKillActif then
+			stopAutoKill = true
+			autoKillActif = false
+			autoKillBtn.Text = "🔄 AutoKill: OFF"
+			autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
+			setStatus(statusLabel, "⛔ AutoKill OFF", Color3.fromRGB(200, 200, 200))
+		else
+			autoKillActif = true
+			stopAutoKill = false
+			stopAction = false
+			autoKillBtn.Text = "🔄 AutoKill: ON"
+			autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 30)
+			setStatus(statusLabel, "🔄 AutoKill ON!", Color3.fromRGB(255, 100, 50))
+
+			task.spawn(function()
+				autoKillLoop(statusLabel, etapeLabel)
+				autoKillBtn.Text = "🔄 AutoKill: OFF"
+				autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
+			end)
+		end
+	end)
+
+	-- F6
 	UserInputService.InputBegan:Connect(function(input, gp)
 		if gp then return end
 		if input.KeyCode == Enum.KeyCode.F6 then
+			if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
+				afficherGamepassRequis()
+				return
+			end
 			mainFrame.Visible = not mainFrame.Visible
 		end
 	end)
 
+	-- Joueurs join/leave
 	Players.PlayerAdded:Connect(function()
 		task.wait(1)
 		rafraichirListe(scrollFrame, statusLabel)
@@ -929,34 +1446,37 @@ local function init()
 
 	Players.PlayerRemoving:Connect(function(p)
 		task.wait(0.3)
-		if joueurCible == p then
-			joueurCible = nil
-			stopAction = true
-		end
+		joueursSelectionnes[p.Name] = nil
 		rafraichirListe(scrollFrame, statusLabel)
 	end)
 
-	-- Auto refresh statut assis
+	-- Auto refresh
 	task.spawn(function()
 		while true do
-			task.wait(2)
+			task.wait(3)
 			for _, child in ipairs(scrollFrame:GetChildren()) do
 				if child:IsA("TextButton") and child.Name:sub(1, 2) == "P_" then
-					local pName = child.Name:sub(3)
-					local p = Players:FindFirstChild(pName)
+					local pN = child.Name:sub(3)
+					local p = Players:FindFirstChild(pN)
 					if p then
-						local assis = estDejaAssis(p)
-						local sitIcon = assis and " 🪑 ASSIS" or " ✅ DEBOUT"
-						local sel = joueurCible == p and " ◄" or ""
-						child.Text = "  👤 " .. p.DisplayName .. " (@" .. p.Name .. ")" .. sitIcon .. sel
+						local asi = estDejaAssis(p) and " 🪑" or " ✅"
+						local sel = joueursSelectionnes[pN] and " ◄" or ""
+						child.Text = "  👤 " .. p.DisplayName .. " (@" .. p.Name .. ")" .. asi .. sel
 					end
 				end
 			end
 		end
 	end)
 
-	setStatus(statusLabel, "✅ Panel v4 chargé! [F6]", Color3.fromRGB(100, 255, 100))
-	print("[ADMIN PANEL v4] Chargé! F6 pour ouvrir.")
+	-- Message initial
+	if aLeGamepass or CONFIG.GAMEPASS_ID == 0 then
+		setStatus(statusLabel, "✅ Panel v5 chargé! [F6] | Anti-AFK ✓", Color3.fromRGB(100, 255, 100))
+	else
+		setStatus(statusLabel, "🔒 Gamepass requis! Cliquez ⚡", Color3.fromRGB(255, 80, 80))
+	end
+
+	print("[ADMIN PANEL v5] Chargé! F6 pour ouvrir. Anti-AFK actif.")
 end
 
+init()
 init()
