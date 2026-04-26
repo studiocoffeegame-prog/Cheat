@@ -1,13 +1,7 @@
+
+	
 -- LocalScript à placer dans StarterPlayerScripts ou StarterGui
--- Panel Admin v4 - Spam Couch / Multi-Seat / Abandon si déjà assis
-
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGu-- LocalScript à placer dans StarterPlayerScripts ou StarterGui
--- Panel Admin v5 FINAL
+-- Panel Admin v5 FINAL - FIXED
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -26,13 +20,10 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local CONFIG = {
 	COORD_ATTENTE = Vector3.new(-86.37, 19.41, -129.45),
 	COORD_RELACHER = Vector3.new(-337.55, 52.91, -454.94),
-	GAMEPASS_ID = 1811696414, -- METTRE L'ID DU GAMEPASS ICI
-	GAME_ID = 9709489907, -- METTRE L'ID DU JEU ICI (pour le lien gamepass)
+	GAMEPASS_ID = 1811696414,
 	PREFIX = ";",
 	SPAM_INTERVAL = 0.05,
 	ANTI_AFK_INTERVAL = 60,
-	GOODBYE_EMOTE = "wave",
-	GOODBYE_MESSAGE = "Goodbye! 👋",
 }
 
 ------------------------------------------------------------
@@ -47,7 +38,7 @@ local autoKillActif = false
 local stopAutoKill = false
 local goodbyeActif = false
 local aLeGamepass = false
-local fileAttente = {} -- Queue de joueurs à kill
+local joueursSelectionnes = {}
 
 ------------------------------------------------------------
 -- GAMEPASS CHECK
@@ -58,22 +49,18 @@ local function verifierGamepass()
 		aLeGamepass = true
 		return true
 	end
-
 	local success, hasPass = pcall(function()
 		return MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, CONFIG.GAMEPASS_ID)
 	end)
-
 	if success then
 		aLeGamepass = hasPass
 		return hasPass
 	end
-
 	aLeGamepass = false
 	return false
 end
 
 local function afficherGamepassRequis()
-	-- Créer une popup pour acheter le gamepass
 	local existing = PlayerGui:FindFirstChild("GamepassPopup")
 	if existing then existing:Destroy() end
 
@@ -89,30 +76,32 @@ local function afficherGamepassRequis()
 	bg.Parent = popup
 
 	local card = Instance.new("Frame")
-	card.Size = UDim2.new(0, 400, 0, 250)
-	card.Position = UDim2.new(0.5, -200, 0.5, -125)
+	card.Size = UDim2.new(0, 400, 0, 260)
+	card.Position = UDim2.new(0.5, -200, 0.5, -130)
 	card.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 	card.BorderSizePixel = 0
 	card.Parent = popup
+
 	local cc = Instance.new("UICorner")
 	cc.CornerRadius = UDim.new(0, 14)
 	cc.Parent = card
+
 	local cs = Instance.new("UIStroke")
 	cs.Color = Color3.fromRGB(255, 80, 80)
 	cs.Thickness = 2
 	cs.Parent = card
 
 	local icon = Instance.new("TextLabel")
-	icon.Size = UDim2.new(1, 0, 0, 60)
-	icon.Position = UDim2.new(0, 0, 0, 15)
+	icon.Size = UDim2.new(1, 0, 0, 55)
+	icon.Position = UDim2.new(0, 0, 0, 12)
 	icon.BackgroundTransparency = 1
 	icon.Text = "🔒"
-	icon.TextSize = 45
+	icon.TextSize = 42
 	icon.Parent = card
 
 	local titre = Instance.new("TextLabel")
-	titre.Size = UDim2.new(1, -30, 0, 25)
-	titre.Position = UDim2.new(0, 15, 0, 75)
+	titre.Size = UDim2.new(1, -30, 0, 24)
+	titre.Position = UDim2.new(0, 15, 0, 72)
 	titre.BackgroundTransparency = 1
 	titre.Text = "GAMEPASS REQUIS"
 	titre.TextColor3 = Color3.fromRGB(255, 80, 80)
@@ -121,27 +110,27 @@ local function afficherGamepassRequis()
 	titre.Parent = card
 
 	local desc = Instance.new("TextLabel")
-	desc.Size = UDim2.new(1, -30, 0, 40)
-	desc.Position = UDim2.new(0, 15, 0, 105)
+	desc.Size = UDim2.new(1, -30, 0, 50)
+	desc.Position = UDim2.new(0, 15, 0, 100)
 	desc.BackgroundTransparency = 1
-	desc.Text = "Veuillez acheter le gamepass Admin Panel pour utiliser cette fonctionnalité."
+	desc.Text = "Veuillez acheter le gamepass Admin Panel pour utiliser cette fonctionnalite."
 	desc.TextColor3 = Color3.fromRGB(180, 180, 180)
 	desc.TextSize = 13
 	desc.Font = Enum.Font.Gotham
 	desc.TextWrapped = true
 	desc.Parent = card
 
-	-- Bouton acheter
 	local acheterBtn = Instance.new("TextButton")
-	acheterBtn.Size = UDim2.new(0.45, 0, 0, 40)
-	acheterBtn.Position = UDim2.new(0.03, 0, 0, 160)
+	acheterBtn.Size = UDim2.new(0.45, 0, 0, 38)
+	acheterBtn.Position = UDim2.new(0.03, 0, 0, 165)
 	acheterBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
-	acheterBtn.Text = "🛒 Acheter Gamepass"
+	acheterBtn.Text = "Acheter Gamepass"
 	acheterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	acheterBtn.TextSize = 13
+	acheterBtn.TextSize = 12
 	acheterBtn.Font = Enum.Font.GothamBold
 	acheterBtn.BorderSizePixel = 0
 	acheterBtn.Parent = card
+
 	local ac = Instance.new("UICorner")
 	ac.CornerRadius = UDim.new(0, 8)
 	ac.Parent = acheterBtn
@@ -152,17 +141,17 @@ local function afficherGamepassRequis()
 		end
 	end)
 
-	-- Bouton fermer
 	local fermerBtn = Instance.new("TextButton")
-	fermerBtn.Size = UDim2.new(0.45, 0, 0, 40)
-	fermerBtn.Position = UDim2.new(0.52, 0, 0, 160)
+	fermerBtn.Size = UDim2.new(0.45, 0, 0, 38)
+	fermerBtn.Position = UDim2.new(0.52, 0, 0, 165)
 	fermerBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-	fermerBtn.Text = "❌ Fermer"
+	fermerBtn.Text = "Fermer"
 	fermerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	fermerBtn.TextSize = 13
+	fermerBtn.TextSize = 12
 	fermerBtn.Font = Enum.Font.GothamBold
 	fermerBtn.BorderSizePixel = 0
 	fermerBtn.Parent = card
+
 	local fc = Instance.new("UICorner")
 	fc.CornerRadius = UDim.new(0, 8)
 	fc.Parent = fermerBtn
@@ -171,19 +160,17 @@ local function afficherGamepassRequis()
 		popup:Destroy()
 	end)
 
-	-- Lien direct
 	local lienLabel = Instance.new("TextLabel")
 	lienLabel.Size = UDim2.new(1, -30, 0, 20)
-	lienLabel.Position = UDim2.new(0, 15, 0, 210)
+	lienLabel.Position = UDim2.new(0, 15, 0, 218)
 	lienLabel.BackgroundTransparency = 1
-	lienLabel.Text = "🔗 roblox.com/game-pass/" .. CONFIG.GAMEPASS_ID
+	lienLabel.Text = "roblox.com/game-pass/" .. tostring(CONFIG.GAMEPASS_ID)
 	lienLabel.TextColor3 = Color3.fromRGB(100, 150, 255)
 	lienLabel.TextSize = 11
 	lienLabel.Font = Enum.Font.Gotham
 	lienLabel.Parent = card
 end
 
--- Écouter l'achat du gamepass
 MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
 	if player == LocalPlayer and gamePassId == CONFIG.GAMEPASS_ID and wasPurchased then
 		aLeGamepass = true
@@ -224,15 +211,16 @@ local function creerInterface()
 	stk.Transparency = 0.3
 	stk.Parent = mainFrame
 
-	-- Titre
 	local titleBar = Instance.new("Frame")
 	titleBar.Size = UDim2.new(1, 0, 0, 40)
 	titleBar.BackgroundColor3 = Color3.fromRGB(24, 24, 42)
 	titleBar.BorderSizePixel = 0
 	titleBar.Parent = mainFrame
+
 	local tcr = Instance.new("UICorner")
 	tcr.CornerRadius = UDim.new(0, 14)
 	tcr.Parent = titleBar
+
 	local tfx = Instance.new("Frame")
 	tfx.Size = UDim2.new(1, 0, 0, 14)
 	tfx.Position = UDim2.new(0, 0, 1, -14)
@@ -244,7 +232,7 @@ local function creerInterface()
 	tl.Size = UDim2.new(1, -50, 1, 0)
 	tl.Position = UDim2.new(0, 12, 0, 0)
 	tl.BackgroundTransparency = 1
-	tl.Text = "⚡ ADMIN PANEL v5"
+	tl.Text = "ADMIN PANEL v5"
 	tl.TextColor3 = Color3.fromRGB(140, 80, 255)
 	tl.TextSize = 16
 	tl.Font = Enum.Font.GothamBold
@@ -261,11 +249,11 @@ local function creerInterface()
 	closeBtn.Font = Enum.Font.GothamBold
 	closeBtn.BorderSizePixel = 0
 	closeBtn.Parent = titleBar
+
 	local ccc = Instance.new("UICorner")
 	ccc.CornerRadius = UDim.new(0, 6)
 	ccc.Parent = closeBtn
 
-	-- Status
 	local statusLabel = Instance.new("TextLabel")
 	statusLabel.Name = "StatusLabel"
 	statusLabel.Size = UDim2.new(1, -16, 0, 42)
@@ -279,60 +267,58 @@ local function creerInterface()
 	statusLabel.TextWrapped = true
 	statusLabel.Parent = mainFrame
 
-	-- Options frame
 	local optFrame = Instance.new("Frame")
 	optFrame.Size = UDim2.new(1, -16, 0, 35)
 	optFrame.Position = UDim2.new(0, 8, 0, 88)
 	optFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
 	optFrame.BorderSizePixel = 0
 	optFrame.Parent = mainFrame
+
 	local ofc = Instance.new("UICorner")
 	ofc.CornerRadius = UDim.new(0, 6)
 	ofc.Parent = optFrame
 
-	-- Toggle Goodbye
 	local goodbyeBtn = Instance.new("TextButton")
 	goodbyeBtn.Size = UDim2.new(0.48, 0, 0, 27)
 	goodbyeBtn.Position = UDim2.new(0.01, 0, 0, 4)
 	goodbyeBtn.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
-	goodbyeBtn.Text = "👋 Goodbye: OFF"
+	goodbyeBtn.Text = "Goodbye: OFF"
 	goodbyeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 	goodbyeBtn.TextSize = 11
 	goodbyeBtn.Font = Enum.Font.GothamSemibold
 	goodbyeBtn.BorderSizePixel = 0
 	goodbyeBtn.Parent = optFrame
+
 	local gbc = Instance.new("UICorner")
 	gbc.CornerRadius = UDim.new(0, 6)
 	gbc.Parent = goodbyeBtn
 
-	-- Toggle Auto Kill
 	local autoKillBtn = Instance.new("TextButton")
 	autoKillBtn.Size = UDim2.new(0.48, 0, 0, 27)
 	autoKillBtn.Position = UDim2.new(0.51, 0, 0, 4)
 	autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
-	autoKillBtn.Text = "🔄 AutoKill: OFF"
+	autoKillBtn.Text = "AutoKill: OFF"
 	autoKillBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 	autoKillBtn.TextSize = 11
 	autoKillBtn.Font = Enum.Font.GothamSemibold
 	autoKillBtn.BorderSizePixel = 0
 	autoKillBtn.Parent = optFrame
+
 	local akc = Instance.new("UICorner")
 	akc.CornerRadius = UDim.new(0, 6)
 	akc.Parent = autoKillBtn
 
-	-- Sous titre
 	local pt = Instance.new("TextLabel")
 	pt.Size = UDim2.new(1, -16, 0, 16)
 	pt.Position = UDim2.new(0, 8, 0, 127)
 	pt.BackgroundTransparency = 1
-	pt.Text = "📋 Joueurs (multi-sélection) :"
+	pt.Text = "Joueurs (multi-selection) :"
 	pt.TextColor3 = Color3.fromRGB(140, 120, 255)
 	pt.TextSize = 12
 	pt.Font = Enum.Font.GothamSemibold
 	pt.TextXAlignment = Enum.TextXAlignment.Left
 	pt.Parent = mainFrame
 
-	-- Scroll
 	local scrollFrame = Instance.new("ScrollingFrame")
 	scrollFrame.Name = "PlayerList"
 	scrollFrame.Size = UDim2.new(1, -16, 0, 220)
@@ -343,32 +329,35 @@ local function creerInterface()
 	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(120, 60, 255)
 	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 	scrollFrame.Parent = mainFrame
+
 	local sc2 = Instance.new("UICorner")
 	sc2.CornerRadius = UDim.new(0, 8)
 	sc2.Parent = scrollFrame
+
 	local ll = Instance.new("UIListLayout")
 	ll.Padding = UDim.new(0, 2)
 	ll.SortOrder = Enum.SortOrder.LayoutOrder
 	ll.Parent = scrollFrame
+
 	local lpd = Instance.new("UIPadding")
 	lpd.PaddingTop = UDim.new(0, 3)
 	lpd.PaddingLeft = UDim.new(0, 3)
 	lpd.PaddingRight = UDim.new(0, 3)
 	lpd.Parent = scrollFrame
 
-	-- Boutons d'action
 	local btnY = 375
 
 	local refreshBtn = Instance.new("TextButton")
 	refreshBtn.Size = UDim2.new(0.24, 0, 0, 30)
 	refreshBtn.Position = UDim2.new(0.01, 4, 0, btnY)
 	refreshBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 80)
-	refreshBtn.Text = "🔄"
-	refreshBtn.TextSize = 16
+	refreshBtn.Text = "Refresh"
+	refreshBtn.TextSize = 12
 	refreshBtn.Font = Enum.Font.GothamBold
 	refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	refreshBtn.BorderSizePixel = 0
 	refreshBtn.Parent = mainFrame
+
 	local rcc = Instance.new("UICorner")
 	rcc.CornerRadius = UDim.new(0, 8)
 	rcc.Parent = refreshBtn
@@ -377,12 +366,13 @@ local function creerInterface()
 	executeBtn.Size = UDim2.new(0.24, 0, 0, 30)
 	executeBtn.Position = UDim2.new(0.26, 4, 0, btnY)
 	executeBtn.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
-	executeBtn.Text = "💀"
-	executeBtn.TextSize = 16
+	executeBtn.Text = "KILL"
+	executeBtn.TextSize = 12
 	executeBtn.Font = Enum.Font.GothamBold
 	executeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	executeBtn.BorderSizePixel = 0
 	executeBtn.Parent = mainFrame
+
 	local ecc = Instance.new("UICorner")
 	ecc.CornerRadius = UDim.new(0, 8)
 	ecc.Parent = executeBtn
@@ -391,12 +381,13 @@ local function creerInterface()
 	killAllBtn.Size = UDim2.new(0.24, 0, 0, 30)
 	killAllBtn.Position = UDim2.new(0.51, 4, 0, btnY)
 	killAllBtn.BackgroundColor3 = Color3.fromRGB(120, 20, 60)
-	killAllBtn.Text = "💀ALL"
+	killAllBtn.Text = "KILL ALL"
 	killAllBtn.TextSize = 11
 	killAllBtn.Font = Enum.Font.GothamBold
 	killAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	killAllBtn.BorderSizePixel = 0
 	killAllBtn.Parent = mainFrame
+
 	local kac = Instance.new("UICorner")
 	kac.CornerRadius = UDim.new(0, 8)
 	kac.Parent = killAllBtn
@@ -405,17 +396,17 @@ local function creerInterface()
 	stopBtn.Size = UDim2.new(0.24, 0, 0, 30)
 	stopBtn.Position = UDim2.new(0.76, 4, 0, btnY)
 	stopBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-	stopBtn.Text = "⛔"
-	stopBtn.TextSize = 16
+	stopBtn.Text = "STOP"
+	stopBtn.TextSize = 12
 	stopBtn.Font = Enum.Font.GothamBold
 	stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	stopBtn.BorderSizePixel = 0
 	stopBtn.Parent = mainFrame
+
 	local scc = Instance.new("UICorner")
 	scc.CornerRadius = UDim.new(0, 8)
 	scc.Parent = stopBtn
 
-	-- Étapes / Log
 	local etapeFrame = Instance.new("Frame")
 	etapeFrame.Size = UDim2.new(1, -16, 0, 220)
 	etapeFrame.Position = UDim2.new(0, 8, 0, 415)
@@ -423,6 +414,7 @@ local function creerInterface()
 	etapeFrame.BorderSizePixel = 0
 	etapeFrame.ClipsDescendants = true
 	etapeFrame.Parent = mainFrame
+
 	local efcc = Instance.new("UICorner")
 	efcc.CornerRadius = UDim.new(0, 8)
 	efcc.Parent = etapeFrame
@@ -432,7 +424,7 @@ local function creerInterface()
 	etapeLabel.Size = UDim2.new(1, -8, 1, -4)
 	etapeLabel.Position = UDim2.new(0, 4, 0, 2)
 	etapeLabel.BackgroundTransparency = 1
-	etapeLabel.Text = "📝 Commandes chat:\n;kill <nom> - Kill un joueur\n;kill <nom1> <nom2> ... - Kill plusieurs\n;kill all - AutoKill tous\n;goodbye - Toggle goodbye\n;stop - Stop tout\n\n⚠️ Noms partiels acceptés\n🔑 [F6] Ouvrir/Fermer"
+	etapeLabel.Text = "Commandes chat:\n;kill nom\n;kill nom1 nom2 ...\n;kill all\n;goodbye\n;stop"
 	etapeLabel.TextColor3 = Color3.fromRGB(90, 90, 90)
 	etapeLabel.TextSize = 10
 	etapeLabel.Font = Enum.Font.Code
@@ -441,18 +433,21 @@ local function creerInterface()
 	etapeLabel.TextWrapped = true
 	etapeLabel.Parent = etapeFrame
 
-	-- Toggle
 	local toggleBtn = Instance.new("TextButton")
 	toggleBtn.Size = UDim2.new(0, 46, 0, 46)
 	toggleBtn.Position = UDim2.new(0, 8, 0.5, -23)
 	toggleBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 42)
-	toggleBtn.Text = "⚡"
-	toggleBtn.TextSize = 20
+	toggleBtn.Text = "AP"
+	toggleBtn.TextSize = 14
+	toggleBtn.Font = Enum.Font.GothamBold
+	toggleBtn.TextColor3 = Color3.fromRGB(140, 80, 255)
 	toggleBtn.BorderSizePixel = 0
 	toggleBtn.Parent = screenGui
+
 	local tbcc = Instance.new("UICorner")
 	tbcc.CornerRadius = UDim.new(0, 23)
 	tbcc.Parent = toggleBtn
+
 	local tbss = Instance.new("UIStroke")
 	tbss.Color = Color3.fromRGB(120, 60, 255)
 	tbss.Thickness = 2
@@ -478,7 +473,7 @@ local function creerKillTool()
 	tool.Name = "Kill Tool"
 	tool.RequiresHandle = true
 	tool.CanBeDropped = false
-	tool.ToolTip = "Clic sur joueur = piège"
+	tool.ToolTip = "Clic sur joueur pour pieger"
 
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
@@ -496,19 +491,22 @@ end
 ------------------------------------------------------------
 
 local function setStatus(l, t, c)
-	l.Text = "Statut: " .. t
+	l.Text = "Statut: " .. tostring(t)
 	l.TextColor3 = c or Color3.fromRGB(200, 200, 200)
 end
 
 local function setEtape(l, t)
-	l.Text = t
+	l.Text = tostring(t)
 end
 
-local function tp(pos)
+local function tpJoueur(pos)
 	local c = LocalPlayer.Character
 	if c then
 		local h = c:FindFirstChild("HumanoidRootPart")
-		if h then h.CFrame = CFrame.new(pos) return true end
+		if h then
+			h.CFrame = CFrame.new(pos)
+			return true
+		end
 	end
 	return false
 end
@@ -529,14 +527,19 @@ local function getCouchTool()
 	return nil
 end
 
-local function avoirCouch() return getCouchTool() ~= nil end
+local function avoirCouch()
+	return getCouchTool() ~= nil
+end
 
 local function equiperCouch()
 	local c = LocalPlayer.Character
 	local h = c and c:FindFirstChildOfClass("Humanoid")
 	if not h then return false end
 	local bp = LocalPlayer:FindFirstChild("Backpack")
-	if bp and bp:FindFirstChild("Couch") then h:EquipTool(bp:FindFirstChild("Couch")) return true end
+	if bp and bp:FindFirstChild("Couch") then
+		h:EquipTool(bp:FindFirstChild("Couch"))
+		return true
+	end
 	if c and c:FindFirstChild("Couch") then return true end
 	return false
 end
@@ -595,142 +598,78 @@ local function spamTool()
 	local c = LocalPlayer.Character
 	if not c then return end
 	local couch = c:FindFirstChild("Couch")
-	if couch and couch:IsA("Tool") then couch:Activate() end
+	if couch and couch:IsA("Tool") then
+		couch:Activate()
+	end
 end
 
--- Chercher un joueur par nom partiel (comme HD Admin)
 local function trouverJoueurParNom(nom)
 	nom = nom:lower()
 	local meilleur = nil
 	local meilleurScore = math.huge
-
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p ~= LocalPlayer then
-			local displayLower = p.DisplayName:lower()
-			local nameLower = p.Name:lower()
-
-			-- Match exact
-			if nameLower == nom or displayLower == nom then
-				return p
-			end
-
-			-- Match partiel début
-			if nameLower:sub(1, #nom) == nom then
-				if #nameLower < meilleurScore then
+			local dL = p.DisplayName:lower()
+			local nL = p.Name:lower()
+			if nL == nom or dL == nom then return p end
+			if nL:sub(1, #nom) == nom then
+				if #nL < meilleurScore then
 					meilleur = p
-					meilleurScore = #nameLower
+					meilleurScore = #nL
 				end
-			elseif displayLower:sub(1, #nom) == nom then
-				if #displayLower < meilleurScore then
+			elseif dL:sub(1, #nom) == nom then
+				if #dL < meilleurScore then
 					meilleur = p
-					meilleurScore = #displayLower
+					meilleurScore = #dL
 				end
 			end
 		end
 	end
-
 	return meilleur
 end
 
--- Envoyer un message dans le chat
 local function envoyerChat(message)
-	pcall(function()
-		-- TextChatService (nouveau système)
-		local channel = TextChatService:FindFirstChild("TextChannels")
-		if channel then
-			local rbxGeneral = channel:FindFirstChild("RBXGeneral")
-			if rbxGeneral then
-				rbxGeneral:SendAsync(message)
-				return
-			end
-		end
-	end)
-
-	pcall(function()
-		-- Ancien système
-		local chatService = game:GetService("Chat")
-		local character = LocalPlayer.Character
-		if character and character:FindFirstChild("Head") then
-			chatService:Chat(character.Head, message, Enum.ChatColor.White)
-		end
-	end)
-
-	pcall(function()
-		StarterGui:SetCore("ChatMakeSystemMessage", {
-			Text = "[Admin] " .. message,
-			Color = Color3.fromRGB(255, 200, 50),
-			Font = Enum.Font.GothamBold,
-			TextSize = 14,
-		})
-	end)
-end
-
--- Jouer une emote
-local function jouerEmote(emoteName)
-	pcall(function()
-		local character = LocalPlayer.Character
-		if character then
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			if humanoid then
-				local desc = humanoid:FindFirstChildOfClass("HumanoidDescription")
-				if desc then
-					-- Essayer de jouer l'emote
-					local anim = humanoid:FindFirstChildOfClass("Animator")
-					if anim then
-						-- Chercher l'emote dans les animations
-						for _, v in ipairs(anim:GetPlayingAnimationTracks()) do
-							-- stop existing
-						end
-					end
-				end
-
-				-- Essayer via le chat emote
-				pcall(function()
-					local channel = TextChatService:FindFirstChild("TextChannels")
-					if channel then
-						local rbx = channel:FindFirstChild("RBXGeneral")
-						if rbx then
-							rbx:SendAsync("/e " .. emoteName)
-						end
-					end
-				end)
-			end
-		end
-	end)
-end
-
-------------------------------------------------------------
--- GOODBYE SEQUENCE
-------------------------------------------------------------
-
-local function faireGoodbye(cible)
-	if not goodbyeActif then return end
-
-	-- Jouer l'emote wave
-	jouerEmote("wave")
-	task.wait(0.3)
-
-	-- Dire goodbye dans le chat
 	pcall(function()
 		local channel = TextChatService:FindFirstChild("TextChannels")
 		if channel then
 			local rbx = channel:FindFirstChild("RBXGeneral")
 			if rbx then
-				rbx:SendAsync("Goodbye " .. cible.DisplayName .. "! 👋")
+				rbx:SendAsync(tostring(message))
 			end
 		end
 	end)
+end
 
+local function jouerEmote(emoteName)
+	pcall(function()
+		local channel = TextChatService:FindFirstChild("TextChannels")
+		if channel then
+			local rbx = channel:FindFirstChild("RBXGeneral")
+			if rbx then
+				rbx:SendAsync("/e " .. tostring(emoteName))
+			end
+		end
+	end)
+end
+
+------------------------------------------------------------
+-- GOODBYE
+------------------------------------------------------------
+
+local function faireGoodbye(cible)
+	if not goodbyeActif then return end
+	jouerEmote("wave")
+	task.wait(0.3)
+	envoyerChat("Goodbye " .. cible.DisplayName .. "!")
 	task.wait(1.5)
 end
 
 ------------------------------------------------------------
--- SPAM BOUCLE SUR CIBLE
+-- SPAM BOUCLE
 ------------------------------------------------------------
 
 local function boucleSpam(cible, statusLabel, etapeLabel)
 	local compteur = 0
-
 	while not stopAction do
 		if not cible or not cible.Parent or not cible.Character then
 			return false
@@ -747,9 +686,8 @@ local function boucleSpam(cible, statusLabel, etapeLabel)
 			return true
 		end
 
-		-- Re-check si assis ailleurs → abandon
 		if estDejaAssis(cible) and not cibleSurSeat(cible) then
-			setStatus(statusLabel, "🚫 " .. cible.Name .. " assis ailleurs. Abandon.", Color3.fromRGB(255, 80, 80))
+			setStatus(statusLabel, "Abandon: " .. cible.Name .. " assis ailleurs.", Color3.fromRGB(255, 80, 80))
 			return false
 		end
 
@@ -784,152 +722,151 @@ local function boucleSpam(cible, statusLabel, etapeLabel)
 		spamTool()
 
 		if compteur % 10 == 0 then
-			local d = string.rep(".", (compteur / 10) % 4)
+			local nbSeats = #seats
 			setStatus(statusLabel,
-				"🔄 Spam " .. cible.Name .. d .. " #" .. compteur .. " | " .. #seats .. " seats",
+				"Spam " .. cible.Name .. " #" .. tostring(compteur) .. " | " .. tostring(nbSeats) .. " seats",
 				Color3.fromRGB(100, 200, 255)
 			)
 			setEtape(etapeLabel,
-				"⚡ SPAM ACTIF\n"
-				.. "━━━━━━━━━━━━━━━\n"
-				.. "🎯 " .. cible.Name .. "\n"
-				.. "📍 " .. math.floor(pos.X) .. "," .. math.floor(pos.Y) .. "," .. math.floor(pos.Z) .. "\n"
-				.. "🔄 #" .. compteur .. " | 🪑 " .. #seats .. " seats\n"
-				.. "⏳ Attente assise..."
+				"SPAM ACTIF\n"
+				.. "Cible: " .. cible.Name .. "\n"
+				.. "X:" .. tostring(math.floor(pos.X))
+				.. " Y:" .. tostring(math.floor(pos.Y))
+				.. " Z:" .. tostring(math.floor(pos.Z)) .. "\n"
+				.. "Spam #" .. tostring(compteur)
+				.. " | Seats: " .. tostring(nbSeats) .. "\n"
+				.. "Attente que la cible s assie..."
 			)
 		end
 
 		task.wait(CONFIG.SPAM_INTERVAL)
 	end
-
 	return false
 end
 
 ------------------------------------------------------------
--- KILL UN JOUEUR (action complète)
+-- KILL UN JOUEUR
 ------------------------------------------------------------
 
 local function killJoueur(cible, statusLabel, etapeLabel)
 	if not cible then return false end
 
 	if estDejaAssis(cible) then
-		setStatus(statusLabel, "🚫 " .. cible.Name .. " déjà assis. Skip.", Color3.fromRGB(255, 80, 80))
-		setEtape(etapeLabel, "🚫 SKIP: " .. cible.Name .. " déjà assis")
+		setStatus(statusLabel, cible.Name .. " deja assis. Skip.", Color3.fromRGB(255, 80, 80))
+		setEtape(etapeLabel, "SKIP: " .. cible.Name .. " deja assis")
 		return false
 	end
 
-	-- GOODBYE
 	if goodbyeActif then
-		setStatus(statusLabel, "👋 Goodbye " .. cible.Name .. "...", Color3.fromRGB(255, 200, 100))
-		setEtape(etapeLabel, "👋 GOODBYE\n━━━━━━━━━━━━━━━\n🎯 " .. cible.Name .. "\n👋 Wave + message...")
+		setStatus(statusLabel, "Goodbye " .. cible.Name .. "...", Color3.fromRGB(255, 200, 100))
+		setEtape(etapeLabel, "GOODBYE\nCible: " .. cible.Name .. "\nWave + message...")
 		faireGoodbye(cible)
-
 		if stopAction then return false end
-
-		-- Re-check après goodbye
 		if estDejaAssis(cible) then
-			setStatus(statusLabel, "🚫 " .. cible.Name .. " assis pendant goodbye.", Color3.fromRGB(255, 80, 80))
+			setStatus(statusLabel, cible.Name .. " assis pendant goodbye.", Color3.fromRGB(255, 80, 80))
 			return false
 		end
 	end
 
-	-- Sauvegarder position
 	local myC = LocalPlayer.Character
 	if myC and myC:FindFirstChild("HumanoidRootPart") then
 		positionInitiale = myC.HumanoidRootPart.Position
 	end
 
-	-- TP attente
-	setStatus(statusLabel, "➡️ TP attente...", Color3.fromRGB(100, 200, 255))
-	setEtape(etapeLabel, "📌 KILL: " .. cible.Name .. "\n━━━━━━━━━━━━━━━\n➡️ TP zone attente...")
-	tp(CONFIG.COORD_ATTENTE)
+	setStatus(statusLabel, "TP attente...", Color3.fromRGB(100, 200, 255))
+	setEtape(etapeLabel, "KILL: " .. cible.Name .. "\nTP zone attente...")
+	tpJoueur(CONFIG.COORD_ATTENTE)
 	task.wait(0.4)
 
 	if stopAction then
-		if positionInitiale then tp(positionInitiale) end
+		if positionInitiale then tpJoueur(positionInitiale) end
 		return false
 	end
 
-	-- Attendre Couch
 	local t = 0
 	while not avoirCouch() and t < 180 and not stopAction do
 		task.wait(0.3)
 		t = t + 0.3
 		if math.floor(t) % 3 == 0 then
-			setStatus(statusLabel, "⏳ Couch... " .. math.floor(t) .. "s", Color3.fromRGB(255, 200, 50))
+			setStatus(statusLabel, "Attente Couch... " .. tostring(math.floor(t)) .. "s", Color3.fromRGB(255, 200, 50))
+			setEtape(etapeLabel,
+				"ATTENTE COUCH\n"
+				.. tostring(math.floor(t)) .. "s / 180s\n"
+				.. "Couch non trouve dans inventaire..."
+			)
 		end
-
 		if estDejaAssis(cible) then
-			setStatus(statusLabel, "🚫 " .. cible.Name .. " assis. Abandon.", Color3.fromRGB(255, 80, 80))
-			if positionInitiale then tp(positionInitiale) end
+			setStatus(statusLabel, cible.Name .. " assis. Abandon.", Color3.fromRGB(255, 80, 80))
+			if positionInitiale then tpJoueur(positionInitiale) end
 			return false
 		end
 	end
 
 	if stopAction then
-		if positionInitiale then tp(positionInitiale) end
+		if positionInitiale then tpJoueur(positionInitiale) end
 		return false
 	end
 
 	if not avoirCouch() then
-		setStatus(statusLabel, "❌ Timeout Couch", Color3.fromRGB(255, 50, 50))
-		if positionInitiale then tp(positionInitiale) end
+		setStatus(statusLabel, "Timeout Couch!", Color3.fromRGB(255, 50, 50))
+		if positionInitiale then tpJoueur(positionInitiale) end
 		return false
 	end
 
-	-- Équiper
 	equiperCouch()
 	task.wait(0.3)
 
 	if estDejaAssis(cible) then
 		desequiperCouch()
-		if positionInitiale then tp(positionInitiale) end
+		if positionInitiale then tpJoueur(positionInitiale) end
 		return false
 	end
 
-	-- Spam
-	setStatus(statusLabel, "🔄 Spam sur " .. cible.Name .. "...", Color3.fromRGB(100, 200, 255))
+	setStatus(statusLabel, "Spam sur " .. cible.Name .. "...", Color3.fromRGB(100, 200, 255))
 	local ok = boucleSpam(cible, statusLabel, etapeLabel)
 
 	if stopAction then
 		desequiperCouch()
-		if positionInitiale then tp(positionInitiale) end
+		if positionInitiale then tpJoueur(positionInitiale) end
 		return false
 	end
 
 	if not ok then
 		desequiperCouch()
-		if positionInitiale then tp(positionInitiale) end
+		if positionInitiale then tpJoueur(positionInitiale) end
 		return false
 	end
 
-	-- Assis! TP relâcher (COUCH EN MAIN)
-	setStatus(statusLabel, "🪑 " .. cible.Name .. " ASSIS! TP relâche...", Color3.fromRGB(50, 255, 100))
+	setStatus(statusLabel, cible.Name .. " ASSIS! TP relache...", Color3.fromRGB(50, 255, 100))
 	setEtape(etapeLabel,
-		"✅ ASSIS!\n━━━━━━━━━━━━━━━\n🪑 " .. cible.Name .. " sur Couch\n➡️ TP relâche avec Couch..."
+		"ASSIS!\n"
+		.. cible.Name .. " sur Couch\n"
+		.. "TP relache avec Couch en main..."
 	)
 	task.wait(0.2)
-	tp(CONFIG.COORD_RELACHER)
+
+	tpJoueur(CONFIG.COORD_RELACHER)
 	task.wait(0.4)
 
-	-- MAINTENANT lâcher
 	desequiperCouch()
 	task.wait(0.3)
 
 	setEtape(etapeLabel,
-		"✅ KILL RÉUSSI\n━━━━━━━━━━━━━━━\n🎯 " .. cible.Name .. "\n📍 Relâché à: -337.55, 52.91, -454.94\n📦 Couch lâché"
+		"KILL REUSSI\n"
+		.. "Cible: " .. cible.Name .. "\n"
+		.. "Relache a: -337.55, 52.91, -454.94\n"
+		.. "Couch lache"
 	)
 
-	-- Retour
-	if positionInitiale then tp(positionInitiale) end
+	if positionInitiale then tpJoueur(positionInitiale) end
 	task.wait(0.3)
 
-	setStatus(statusLabel, "✅ " .. cible.Name .. " kill! ✓", Color3.fromRGB(50, 255, 50))
+	setStatus(statusLabel, cible.Name .. " kill OK!", Color3.fromRGB(50, 255, 50))
 	return true
 end
 
 ------------------------------------------------------------
--- KILL MULTIPLE (file d'attente)
+-- KILL MULTIPLE
 ------------------------------------------------------------
 
 local function killMultiple(joueurs, statusLabel, etapeLabel)
@@ -940,29 +877,27 @@ local function killMultiple(joueurs, statusLabel, etapeLabel)
 		if stopAction or stopAutoKill then break end
 
 		setEtape(etapeLabel,
-			"📋 FILE D'ATTENTE\n"
-			.. "━━━━━━━━━━━━━━━\n"
-			.. "🎯 " .. i .. "/" .. total .. " : " .. cible.Name .. "\n"
-			.. "✅ Kills: " .. kills .. "\n"
-			.. "⏳ En cours..."
+			"FILE D ATTENTE\n"
+			.. tostring(i) .. "/" .. tostring(total) .. " : " .. cible.Name .. "\n"
+			.. "Kills reussis: " .. tostring(kills) .. "\n"
+			.. "En cours..."
 		)
 
 		local ok = killJoueur(cible, statusLabel, etapeLabel)
 		if ok then kills = kills + 1 end
 
 		if i < total and not stopAction then
-			setStatus(statusLabel, "⏳ Prochain dans 2s...", Color3.fromRGB(200, 200, 100))
+			setStatus(statusLabel, "Prochain dans 2s...", Color3.fromRGB(200, 200, 100))
 			task.wait(2)
 		end
 	end
 
 	setEtape(etapeLabel,
-		"📋 FILE TERMINÉE\n"
-		.. "━━━━━━━━━━━━━━━\n"
-		.. "✅ " .. kills .. "/" .. total .. " kills réussis\n"
-		.. "🏠 Terminé!"
+		"FILE TERMINEE\n"
+		.. tostring(kills) .. "/" .. tostring(total) .. " kills reussis\n"
+		.. "Termine!"
 	)
-	setStatus(statusLabel, "✅ " .. kills .. "/" .. total .. " kills! Prêt.", Color3.fromRGB(50, 255, 50))
+	setStatus(statusLabel, tostring(kills) .. "/" .. tostring(total) .. " kills! Pret.", Color3.fromRGB(50, 255, 50))
 end
 
 ------------------------------------------------------------
@@ -971,7 +906,6 @@ end
 
 local function autoKillLoop(statusLabel, etapeLabel)
 	while autoKillActif and not stopAutoKill do
-		-- Trouver un joueur aléatoire non assis
 		local candidats = {}
 		for _, p in ipairs(Players:GetPlayers()) do
 			if p ~= LocalPlayer and not estDejaAssis(p) and p.Character and getCibleHRP(p) then
@@ -980,15 +914,14 @@ local function autoKillLoop(statusLabel, etapeLabel)
 		end
 
 		if #candidats == 0 then
-			setStatus(statusLabel, "🔄 AutoKill: Aucun joueur dispo. Attente...", Color3.fromRGB(255, 200, 50))
-			setEtape(etapeLabel, "🔄 AUTO KILL\n━━━━━━━━━━━━━━━\n⏳ Aucun joueur disponible\n🔍 Recherche...")
+			setStatus(statusLabel, "AutoKill: Aucun joueur dispo. Attente...", Color3.fromRGB(255, 200, 50))
+			setEtape(etapeLabel, "AUTO KILL\nAucun joueur disponible\nRecherche...")
 			task.wait(3)
 			continue
 		end
 
-		-- Choisir aléatoirement
 		local cible = candidats[math.random(1, #candidats)]
-		setStatus(statusLabel, "🔄 AutoKill → " .. cible.Name, Color3.fromRGB(255, 150, 50))
+		setStatus(statusLabel, "AutoKill -> " .. cible.Name, Color3.fromRGB(255, 150, 50))
 
 		stopAction = false
 		enAction = true
@@ -997,7 +930,9 @@ local function autoKillLoop(statusLabel, etapeLabel)
 
 		if ok then
 			setEtape(etapeLabel,
-				"🔄 AUTO KILL\n━━━━━━━━━━━━━━━\n✅ " .. cible.Name .. " kill!\n⏳ Prochain dans 3s..."
+				"AUTO KILL\n"
+				.. cible.Name .. " kill!\n"
+				.. "Prochain dans 3s..."
 			)
 		end
 
@@ -1006,7 +941,7 @@ local function autoKillLoop(statusLabel, etapeLabel)
 		end
 	end
 
-	setStatus(statusLabel, "⛔ AutoKill arrêté.", Color3.fromRGB(150, 150, 150))
+	setStatus(statusLabel, "AutoKill arrete.", Color3.fromRGB(150, 150, 150))
 end
 
 ------------------------------------------------------------
@@ -1025,7 +960,6 @@ local function demarrerAntiAFK()
 		end
 	end)
 
-	-- Aussi empêcher l'idle kick
 	pcall(function()
 		local vu = game:GetService("VirtualUser")
 		LocalPlayer.Idled:Connect(function()
@@ -1042,55 +976,44 @@ end
 ------------------------------------------------------------
 
 local function setupChatCommands(statusLabel, etapeLabel)
-	-- Nouveau système TextChatService
-	pcall(function()
-		TextChatService.SendingMessage:Connect(function(msg)
-			-- Ce event n'existe pas toujours, on utilise MessageReceived
-		end)
-	end)
-
-	-- Utiliser l'event de chat du joueur
 	pcall(function()
 		LocalPlayer.Chatted:Connect(function(message)
-			local msg = message:lower():gsub("^%s+", ""):gsub("%s+$", "")
+			local msg = message:lower()
+			msg = msg:match("^%s*(.-)%s*$")
 
-			if not msg:sub(1, #CONFIG.PREFIX) == CONFIG.PREFIX then return end
-			local cmd = msg:sub(#CONFIG.PREFIX + 1)
+			if msg:sub(1, 1) ~= CONFIG.PREFIX then return end
 
-			-- ;stop
+			local cmd = msg:sub(2)
+
 			if cmd == "stop" then
 				stopAction = true
 				stopAutoKill = true
 				autoKillActif = false
-				setStatus(statusLabel, "⛔ STOP via chat.", Color3.fromRGB(255, 100, 50))
+				setStatus(statusLabel, "STOP via chat.", Color3.fromRGB(255, 100, 50))
 				return
 			end
 
-			-- ;goodbye
 			if cmd == "goodbye" then
 				goodbyeActif = not goodbyeActif
 				local state = goodbyeActif and "ON" or "OFF"
-				setStatus(statusLabel, "👋 Goodbye: " .. state, Color3.fromRGB(255, 200, 100))
+				setStatus(statusLabel, "Goodbye: " .. state, Color3.fromRGB(255, 200, 100))
 				return
 			end
 
-			-- ;kill all
 			if cmd == "kill all" then
 				if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
 					afficherGamepassRequis()
 					return
 				end
-
 				autoKillActif = true
 				stopAutoKill = false
-				setStatus(statusLabel, "🔄 AutoKill ALL activé via chat!", Color3.fromRGB(255, 100, 50))
+				setStatus(statusLabel, "AutoKill ALL via chat!", Color3.fromRGB(255, 100, 50))
 				task.spawn(function()
 					autoKillLoop(statusLabel, etapeLabel)
 				end)
 				return
 			end
 
-			-- ;kill <nom1> <nom2> ...
 			if cmd:sub(1, 5) == "kill " then
 				if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
 					afficherGamepassRequis()
@@ -1104,50 +1027,47 @@ local function setupChatCommands(statusLabel, etapeLabel)
 				end
 
 				if #noms == 0 then
-					setStatus(statusLabel, "❌ ;kill <nom>", Color3.fromRGB(255, 50, 50))
+					setStatus(statusLabel, "Usage: ;kill nom", Color3.fromRGB(255, 50, 50))
 					return
 				end
 
-				local joueursTrouvés = {}
-				local nonTrouvés = {}
+				local joueursTrouves = {}
+				local nonTrouves = {}
 
 				for _, nom in ipairs(noms) do
 					local p = trouverJoueurParNom(nom)
 					if p then
-						table.insert(joueursTrouvés, p)
+						table.insert(joueursTrouves, p)
 					else
-						table.insert(nonTrouvés, nom)
+						table.insert(nonTrouves, nom)
 					end
 				end
 
-				if #nonTrouvés > 0 then
-					setStatus(statusLabel, "⚠️ Non trouvé: " .. table.concat(nonTrouvés, ", "), Color3.fromRGB(255, 200, 50))
+				if #nonTrouves > 0 then
+					setStatus(statusLabel, "Non trouve: " .. table.concat(nonTrouves, ", "), Color3.fromRGB(255, 200, 50))
 				end
 
-				if #joueursTrouvés > 0 then
+				if #joueursTrouves > 0 then
 					stopAction = false
 					local names = {}
-					for _, p in ipairs(joueursTrouvés) do table.insert(names, p.Name) end
-					setStatus(statusLabel, "💀 Kill: " .. table.concat(names, ", "), Color3.fromRGB(255, 100, 50))
-
+					for _, p in ipairs(joueursTrouves) do
+						table.insert(names, p.Name)
+					end
+					setStatus(statusLabel, "Kill: " .. table.concat(names, ", "), Color3.fromRGB(255, 100, 50))
 					task.spawn(function()
 						enAction = true
-						killMultiple(joueursTrouvés, statusLabel, etapeLabel)
+						killMultiple(joueursTrouves, statusLabel, etapeLabel)
 						enAction = false
 					end)
 				end
-
-				return
 			end
 		end)
 	end)
 end
 
 ------------------------------------------------------------
--- LISTE JOUEURS (multi-sélection)
+-- LISTE JOUEURS
 ------------------------------------------------------------
-
-local joueursSelectionnes = {}
 
 local function rafraichirListe(scrollFrame, statusLabel)
 	for _, child in ipairs(scrollFrame:GetChildren()) do
@@ -1171,9 +1091,9 @@ local function rafraichirListe(scrollFrame, statusLabel)
 			btn.Parent = scrollFrame
 
 			local assis = estDejaAssis(player)
-			local si = assis and " 🪑" or " ✅"
-			local selected = joueursSelectionnes[player.Name] and " ◄" or ""
-			btn.Text = "  👤 " .. player.DisplayName .. " (@" .. player.Name .. ")" .. si .. selected
+			local si = assis and " [ASSIS]" or " [DEBOUT]"
+			local selected = joueursSelectionnes[player.Name] and " <" or ""
+			btn.Text = "  " .. player.DisplayName .. " (@" .. player.Name .. ")" .. si .. selected
 
 			local bc = Instance.new("UICorner")
 			bc.CornerRadius = UDim.new(0, 5)
@@ -1189,6 +1109,7 @@ local function rafraichirListe(scrollFrame, statusLabel)
 					btn.BackgroundColor3 = Color3.fromRGB(38, 38, 58)
 				end
 			end)
+
 			btn.MouseLeave:Connect(function()
 				if not joueursSelectionnes[player.Name] then
 					btn.BackgroundColor3 = Color3.fromRGB(24, 24, 38)
@@ -1196,7 +1117,6 @@ local function rafraichirListe(scrollFrame, statusLabel)
 			end)
 
 			btn.MouseButton1Click:Connect(function()
-				-- Toggle sélection
 				if joueursSelectionnes[player.Name] then
 					joueursSelectionnes[player.Name] = nil
 					btn.BackgroundColor3 = Color3.fromRGB(24, 24, 38)
@@ -1207,15 +1127,13 @@ local function rafraichirListe(scrollFrame, statusLabel)
 					btn.TextColor3 = Color3.fromRGB(255, 120, 120)
 				end
 
-				-- Compter sélectionnés
 				local nb = 0
 				for _ in pairs(joueursSelectionnes) do nb = nb + 1 end
-				setStatus(statusLabel, "🎯 " .. nb .. " joueur(s) sélectionné(s)", Color3.fromRGB(255, 150, 100))
+				setStatus(statusLabel, tostring(nb) .. " joueur(s) selectionne(s)", Color3.fromRGB(255, 150, 100))
 
-				-- Mettre à jour le texte
-				local asi = estDejaAssis(player) and " 🪑" or " ✅"
-				local sel = joueursSelectionnes[player.Name] and " ◄" or ""
-				btn.Text = "  👤 " .. player.DisplayName .. " (@" .. player.Name .. ")" .. asi .. sel
+				local asi = estDejaAssis(player) and " [ASSIS]" or " [DEBOUT]"
+				local sel = joueursSelectionnes[player.Name] and " <" or ""
+				btn.Text = "  " .. player.DisplayName .. " (@" .. player.Name .. ")" .. asi .. sel
 			end)
 		end
 	end
@@ -1253,18 +1171,13 @@ end
 ------------------------------------------------------------
 
 local function init()
-	-- Vérifier gamepass
 	verifierGamepass()
-
-	-- Anti AFK
 	demarrerAntiAFK()
 
-	-- Interface
 	local screenGui, mainFrame, scrollFrame, statusLabel, etapeLabel,
 		closeBtn, refreshBtn, executeBtn, killAllBtn, stopBtn, toggleBtn,
 		goodbyeBtn, autoKillBtn = creerInterface()
 
-	-- Kill Tool
 	local killTool = creerKillTool()
 
 	local function setupKillTool(tool)
@@ -1273,7 +1186,6 @@ local function init()
 				afficherGamepassRequis()
 				return
 			end
-
 			local mouse = LocalPlayer:GetMouse()
 			local target = mouse.Target
 			if target then
@@ -1281,7 +1193,7 @@ local function init()
 				if model then
 					local p = Players:GetPlayerFromCharacter(model)
 					if p and p ~= LocalPlayer then
-						setStatus(statusLabel, "🎯 " .. p.DisplayName .. " via Kill Tool!", Color3.fromRGB(255, 100, 50))
+						setStatus(statusLabel, p.DisplayName .. " via Kill Tool!", Color3.fromRGB(255, 100, 50))
 						stopAction = false
 						task.spawn(function()
 							enAction = true
@@ -1302,13 +1214,8 @@ local function init()
 		setupKillTool(killTool)
 	end)
 
-	-- Chat commands
 	setupChatCommands(statusLabel, etapeLabel)
-
-	-- Refresh liste
 	rafraichirListe(scrollFrame, statusLabel)
-
-	-- BOUTONS
 
 	toggleBtn.MouseButton1Click:Connect(function()
 		if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
@@ -1324,22 +1231,19 @@ local function init()
 
 	refreshBtn.MouseButton1Click:Connect(function()
 		rafraichirListe(scrollFrame, statusLabel)
-		setStatus(statusLabel, "🔄 Mis à jour!", Color3.fromRGB(100, 255, 100))
+		setStatus(statusLabel, "Liste mise a jour!", Color3.fromRGB(100, 255, 100))
 	end)
 
-	-- Kill sélectionnés
 	executeBtn.MouseButton1Click:Connect(function()
 		if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
 			afficherGamepassRequis()
 			return
 		end
-
 		local sel = getJoueursSelectionnes()
 		if #sel == 0 then
-			setStatus(statusLabel, "❌ Sélectionne des joueurs!", Color3.fromRGB(255, 50, 50))
+			setStatus(statusLabel, "Selectionne des joueurs!", Color3.fromRGB(255, 50, 50))
 			return
 		end
-
 		stopAction = false
 		task.spawn(function()
 			enAction = true
@@ -1350,83 +1254,72 @@ local function init()
 		end)
 	end)
 
-	-- Kill All
 	killAllBtn.MouseButton1Click:Connect(function()
 		if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
 			afficherGamepassRequis()
 			return
 		end
-
 		autoKillActif = true
 		stopAutoKill = false
 		stopAction = false
-
-		autoKillBtn.Text = "🔄 AutoKill: ON"
+		autoKillBtn.Text = "AutoKill: ON"
 		autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 30)
-
-		setStatus(statusLabel, "🔄 AutoKill ALL activé!", Color3.fromRGB(255, 100, 50))
-
+		setStatus(statusLabel, "AutoKill ALL active!", Color3.fromRGB(255, 100, 50))
 		task.spawn(function()
 			autoKillLoop(statusLabel, etapeLabel)
-			autoKillBtn.Text = "🔄 AutoKill: OFF"
+			autoKillBtn.Text = "AutoKill: OFF"
 			autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
 		end)
 	end)
 
-	-- Stop
 	stopBtn.MouseButton1Click:Connect(function()
 		stopAction = true
 		stopAutoKill = true
 		autoKillActif = false
-		autoKillBtn.Text = "🔄 AutoKill: OFF"
+		autoKillBtn.Text = "AutoKill: OFF"
 		autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
-		setStatus(statusLabel, "⛔ STOP!", Color3.fromRGB(255, 100, 50))
+		setStatus(statusLabel, "STOP!", Color3.fromRGB(255, 100, 50))
 	end)
 
-	-- Toggle Goodbye
 	goodbyeBtn.MouseButton1Click:Connect(function()
 		goodbyeActif = not goodbyeActif
 		if goodbyeActif then
-			goodbyeBtn.Text = "👋 Goodbye: ON"
+			goodbyeBtn.Text = "Goodbye: ON"
 			goodbyeBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 30)
-			setStatus(statusLabel, "👋 Goodbye activé!", Color3.fromRGB(100, 255, 100))
+			setStatus(statusLabel, "Goodbye active!", Color3.fromRGB(100, 255, 100))
 		else
-			goodbyeBtn.Text = "👋 Goodbye: OFF"
+			goodbyeBtn.Text = "Goodbye: OFF"
 			goodbyeBtn.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
-			setStatus(statusLabel, "👋 Goodbye désactivé.", Color3.fromRGB(200, 200, 200))
+			setStatus(statusLabel, "Goodbye desactive.", Color3.fromRGB(200, 200, 200))
 		end
 	end)
 
-	-- Toggle AutoKill
 	autoKillBtn.MouseButton1Click:Connect(function()
 		if not aLeGamepass and CONFIG.GAMEPASS_ID > 0 then
 			afficherGamepassRequis()
 			return
 		end
-
 		if autoKillActif then
 			stopAutoKill = true
 			autoKillActif = false
-			autoKillBtn.Text = "🔄 AutoKill: OFF"
+			autoKillBtn.Text = "AutoKill: OFF"
 			autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
-			setStatus(statusLabel, "⛔ AutoKill OFF", Color3.fromRGB(200, 200, 200))
+			setStatus(statusLabel, "AutoKill OFF", Color3.fromRGB(200, 200, 200))
 		else
 			autoKillActif = true
 			stopAutoKill = false
 			stopAction = false
-			autoKillBtn.Text = "🔄 AutoKill: ON"
+			autoKillBtn.Text = "AutoKill: ON"
 			autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 30)
-			setStatus(statusLabel, "🔄 AutoKill ON!", Color3.fromRGB(255, 100, 50))
-
+			setStatus(statusLabel, "AutoKill ON!", Color3.fromRGB(255, 100, 50))
 			task.spawn(function()
 				autoKillLoop(statusLabel, etapeLabel)
-				autoKillBtn.Text = "🔄 AutoKill: OFF"
+				autoKillBtn.Text = "AutoKill: OFF"
 				autoKillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
 			end)
 		end
 	end)
 
-	-- F6
 	UserInputService.InputBegan:Connect(function(input, gp)
 		if gp then return end
 		if input.KeyCode == Enum.KeyCode.F6 then
@@ -1438,7 +1331,6 @@ local function init()
 		end
 	end)
 
-	-- Joueurs join/leave
 	Players.PlayerAdded:Connect(function()
 		task.wait(1)
 		rafraichirListe(scrollFrame, statusLabel)
@@ -1450,7 +1342,6 @@ local function init()
 		rafraichirListe(scrollFrame, statusLabel)
 	end)
 
-	-- Auto refresh
 	task.spawn(function()
 		while true do
 			task.wait(3)
@@ -1459,24 +1350,22 @@ local function init()
 					local pN = child.Name:sub(3)
 					local p = Players:FindFirstChild(pN)
 					if p then
-						local asi = estDejaAssis(p) and " 🪑" or " ✅"
-						local sel = joueursSelectionnes[pN] and " ◄" or ""
-						child.Text = "  👤 " .. p.DisplayName .. " (@" .. p.Name .. ")" .. asi .. sel
+						local asi = estDejaAssis(p) and " [ASSIS]" or " [DEBOUT]"
+						local sel = joueursSelectionnes[pN] and " <" or ""
+						child.Text = "  " .. p.DisplayName .. " (@" .. p.Name .. ")" .. asi .. sel
 					end
 				end
 			end
 		end
 	end)
 
-	-- Message initial
 	if aLeGamepass or CONFIG.GAMEPASS_ID == 0 then
-		setStatus(statusLabel, "✅ Panel v5 chargé! [F6] | Anti-AFK ✓", Color3.fromRGB(100, 255, 100))
+		setStatus(statusLabel, "Panel v5 charge! F6 | Anti-AFK actif", Color3.fromRGB(100, 255, 100))
 	else
-		setStatus(statusLabel, "🔒 Gamepass requis! Cliquez ⚡", Color3.fromRGB(255, 80, 80))
+		setStatus(statusLabel, "Gamepass requis!", Color3.fromRGB(255, 80, 80))
 	end
 
-	print("[ADMIN PANEL v5] Chargé! F6 pour ouvrir. Anti-AFK actif.")
+	print("[ADMIN PANEL v5] Charge! F6 pour ouvrir.")
 end
 
-init()
 init()
